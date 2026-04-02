@@ -1,0 +1,78 @@
+// Custom.scss
+// Option A: Include all of Bootstrap
+
+// Include any default variable overrides here (though functions won’t be available)
+
+// @import "../node_modules/bootstrap/scss/bootstrap";
+
+// Then add additional custom code here
+
+// 1. 导入 Bootstrap 的函数、变量和映射（必须按此顺序）
+@import "../node_modules/bootstrap/scss/functions";
+@import "../node_modules/bootstrap/scss/variables";
+@import "../node_modules/bootstrap/scss/maps";
+
+// 2. 自定义颜色或变量（覆盖默认值）
+$primary: #008272;           // 自定义主色
+$secondary: #5dd2ca;
+$success: #3ebc6a;
+$info: #118ab2;
+$warning: #ffd166;
+$danger: #ef476f;
+$light: #f8f9fa;
+$dark: #073b4c;
+
+// 3. 覆盖 Nav 组件的变量 👇
+// --- 通用 nav-link ---
+$nav-link-color:            $secondary;               // 默认文字颜色
+$nav-link-hover-color:      $primary;                 // 悬停文字颜色
+$nav-link-disabled-color:   $gray-600;
+
+// --- nav-tabs ---
+$nav-tabs-border-color:     #dee2e6;                  // 下边框颜色
+$nav-tabs-link-hover-border-color: $gray-300 $gray-300 $nav-tabs-border-color;
+$nav-tabs-link-active-color:        $primary;         // 激活时文字颜色
+$nav-tabs-link-active-bg:           $body-bg;         // 激活时背景（通常为白色）
+$nav-tabs-link-active-border-color: $gray-300 $gray-300 $nav-tabs-link-active-bg; // 左右+下边框
+
+// --- nav-pills ---
+$nav-pills-link-active-color:       $white;           // 激活时文字颜色
+$nav-pills-link-active-bg:          $primary;         // 激活时背景色
+
+// 3. 覆盖 Pagination 相关变量 👇
+$pagination-color:                  $secondary;        // 默认页码文字颜色
+$pagination-bg:                     $white;            // 默认背景（通常白色）
+$pagination-border-width:           1px;
+$pagination-border-color:           #dee2e6;           // 边框颜色
+
+$pagination-hover-color:            $primary;          // 悬停文字颜色
+$pagination-hover-bg:               $light;            // 悬停背景
+$pagination-hover-border-color:     #adb5bd;           // 悬停边框
+
+$pagination-active-color:           $white;            // 激活页（当前页）文字颜色
+$pagination-active-bg:              $primary;          // 激活页背景
+$pagination-active-border-color:    $primary;          // 激活页边框
+
+$pagination-disabled-color:         $gray-600;         // 禁用页（如“上一页”不可点）
+$pagination-disabled-bg:            $white;
+$pagination-disabled-border-color:  #dee2e6;
+
+
+$theme-colors: (
+  "primary":    $primary,
+  "secondary":  $secondary,
+  "success":    $success,
+  "info":       $info,
+  "warning":    $warning,
+  "danger":     $danger,
+  "light":      $light,
+  "dark":       $dark
+);
+
+// // 3. 可选：自定义其他变量（如间距、字体等）
+// $font-family-sans-serif: 'Inter', sans-serif;
+// $border-radius: 0.5rem;
+// $enable-responsive-font-sizes: true;
+
+// 4. 导入完整的 Bootstrap 样式（含组件、工具类等）
+@import "../node_modules/bootstrap/scss/bootstrap";

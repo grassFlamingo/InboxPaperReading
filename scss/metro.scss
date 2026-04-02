@@ -1,0 +1,476 @@
+// Modern Blue-Based Color Palette and Components
+@import "../node_modules/bootstrap/scss/functions";
+@import "../node_modules/bootstrap/scss/variables";
+@import "../node_modules/bootstrap/scss/maps";
+@import "../node_modules/bootstrap/scss/mixins";
+
+// Custom Theme Colors
+$primary: #44cef6;   // Primary blue
+$secondary: #6eb6ff; // Secondary blue
+$success: #c0ebd7;   // Light blue
+$info: #e0fcff;      // Very light blue
+$warning: #ffb61e;  // Keeping yellow for warning
+$danger: #ff3300;   // Keeping red for danger
+$light: #f0fcff;    // Bootstrap default light
+$dark: #161823;     // Bootstrap default dark
+
+// Update Bootstrap theme colors with new palette
+$theme-colors: (
+  "primary": $primary,
+  "secondary": $secondary,
+  "success": $success,
+  "info": $info,
+  "warning": $warning,
+  "danger": $danger,
+  "light": $light,
+  "dark": $dark
+);
+
+// Modern style variables
+$border-radius: 8px;
+$modern-font-family: 'Segoe UI', 'Segoe WP', 'Microsoft YaHei', sans-serif;
+$letter-spacing: 0.5px;
+
+// Override Bootstrap variables for Metro style
+$border-radius: $border-radius;
+$border-radius-sm: $border-radius;
+$border-radius-lg: $border-radius;
+$btn-border-radius: $border-radius;
+$btn-border-radius-sm: $border-radius;
+$btn-border-radius-lg: $border-radius;
+$card-border-radius: $border-radius;
+$nav-tabs-border-radius: $border-radius;
+$pill-border-radius: $border-radius;
+
+// Import Bootstrap after customizations
+@import "../node_modules/bootstrap/scss/bootstrap";
+
+// Modern-specific styles
+body {
+  font-family: $modern-font-family;
+  background-color: #f7fdff;
+  color: $dark;
+}
+
+// Update theme colors to include all new colors as background utilities
+:root {
+  --modern-blue-1: #{$primary};
+  --modern-blue-2: #{$secondary};
+  --modern-blue-3: #{$success};
+  --modern-blue-4: #{$info};
+}
+
+// Apply new colors as background utilities
+.bg-blue-1 { background-color: $primary; color: white; }
+.bg-blue-2 { background-color: $secondary; color: white; }
+.bg-blue-3 { background-color: $success; color: black; }
+.bg-blue-4 { background-color: $info; color: black; }
+
+// Update default Bootstrap background colors to use new variants
+.bg-primary { background-color: $primary !important; color: white; }
+.bg-secondary { background-color: $secondary !important; color: black; }
+.bg-success { background-color: $success !important; color: black; }
+.bg-info { background-color: $info !important; color: black; }
+.bg-warning { background-color: $warning !important; color: black; }
+.bg-danger { background-color: $danger !important; color: white; }
+.bg-light { background-color: $light !important; color: black; }
+.bg-dark { background-color: $dark !important; color: white; }
+
+// Metro tiles
+.tile {
+  position: relative;
+  display: inline-block;
+  margin: 5px;
+  background-color: $primary;
+  color: white;
+  border-radius: $border-radius;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+  
+  &:hover {
+    transform: scale(1.05);
+  }
+  
+  &.tile-wide {
+    width: 310px;
+  }
+  
+  &.tile-large {
+    width: 310px;
+    height: 310px;
+  }
+  
+  .tile-content {
+    padding: 15px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    
+    h3, h4, h5 {
+      margin: 0;
+      font-weight: 600;
+    }
+  }
+  
+  @each $color, $value in $theme-colors {
+    &.bg-#{$color} {
+      background-color: $value !important;
+      
+      .tile-title {
+        color: if(color-contrast($value) == $color-contrast-light, $color-contrast-light, $color-contrast-dark);
+      }
+    }
+  }
+}
+
+// Update default Bootstrap buttons to Metro style
+.btn {
+  border-radius: $border-radius;
+//   text-transform: uppercase;
+  letter-spacing: $letter-spacing;
+  font-weight: 600;
+  padding: 10px 20px;
+  box-shadow: 1px 2px 4px 0px rgba(0, 0, 0, 0.1);
+//   border: none;
+
+  &:focus {
+    box-shadow: none;
+  }
+
+  &:active {
+    transform: translateY(2px);
+  }
+
+  // Ensure all themed buttons follow Metro style
+  &-primary,
+  &-secondary,
+  &-success,
+  &-info,
+  &-warning,
+  &-danger,
+  &-light,
+  &-dark,
+  &-link {
+    border-radius: $border-radius;
+
+    &:focus {
+      box-shadow: none;
+    }
+  }
+}
+
+// Update default Bootstrap cards to Metro style
+.card {
+  border-radius: $border-radius;
+  border: none;
+  box-shadow: 4px 8px 10px 3px rgba(0, 0, 0, 0.1);
+//   background: #f0fcff;
+
+  .card-header {
+    border-radius: $border-radius $border-radius 0 0;
+    border-bottom: none;
+    padding: 15px 20px;
+  }
+
+  .card-body {
+    padding: 20px;
+  }
+
+  .card-footer {
+    border-radius: 0 0 $border-radius $border-radius;
+    border-top: none;
+  }
+}
+
+// Update default Bootstrap navigation to Metro style
+.nav {
+  .nav-link {
+    border-radius: $border-radius;
+    padding: 10px 15px;
+    margin-right: 2px;
+    color: $dark;
+
+    &:hover {
+      background-color: rgba($primary, 0.2);
+    }
+
+    &.active {
+      background-color: rgba($primary, 0.8);
+      color: $light;
+    }
+  }
+}
+
+.nav-tabs {
+  border-bottom: 2px solid #e0e0e0;
+
+  .nav-item {
+    margin-bottom: 0px;
+  }
+
+  .nav-link {
+    border: none;
+    border-radius: 0;
+    padding: 10px 20px;
+
+    &:hover {
+      border: none;
+      border-bottom: 2px solid $secondary;
+    }
+
+    &.active {
+      border: none;
+      border-bottom: 2px solid $primary;
+      color: $primary;
+    }
+  }
+}
+
+// Update default Bootstrap form controls to Metro style
+.form-control {
+  border-radius: $border-radius;
+  border: 2px solid #e0e0e0;
+  padding: 8px 12px;
+
+  &:focus {
+    border-color: $primary;
+    box-shadow: none;
+  }
+}
+
+.form-select {
+  padding: 8px 12px;
+}
+
+// Update default Bootstrap button groups to Metro style
+.btn-group {
+  .btn {
+    border-radius: $border-radius;
+  }
+}
+
+// Update default Bootstrap list groups to Metro style
+.list-group {
+  .list-group-item {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+
+    &:first-child {
+      border-top: none;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+// Update default Bootstrap alerts to Metro style
+.alert {
+  border-radius: $border-radius;
+  border: none;
+  color: $dark;
+
+  // Apply theme colors to different alert types
+  &-primary {
+    background-color: $primary;
+    border-left: 4px solid $primary;
+  }
+
+  &-secondary {
+    background-color: $secondary;
+    border-left: 4px solid $secondary;
+  }
+
+  &-success {
+    background-color: $success;
+    border-left: 4px solid $success;
+  }
+
+  &-info {
+    background-color: $info;
+    border-left: 4px solid $info;
+  }
+
+  &-warning {
+    background-color: $warning;
+    border-left: 4px solid $warning;
+  }
+
+  &-danger {
+    background-color: $danger;
+    border-left: 4px solid $danger;
+  }
+
+  &-light {
+    background-color: $light;
+    border-left: 4px solid $light;
+  }
+
+  &-dark {
+    background-color: $dark;
+    border-left: 4px solid $dark;
+  }
+
+  .alert-link {
+    text-decoration: underline;
+    color: inherit;
+    font-weight: 600;
+
+    &:hover {
+      color: $primary;
+    }
+  }
+}
+
+// Update default Bootstrap alert-dismissible to Metro style
+.alert-dismissible {
+  padding-right: 3rem;
+
+  .btn-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    padding: 1rem;
+    border-radius: $border-radius;
+    background-color: transparent;
+    opacity: 0.6;
+
+    &:hover {
+      opacity: 1;
+      background-color: transparent;
+    }
+
+    &:focus {
+      box-shadow: 0 0 0 0.2rem rgba($primary, 0.25);
+      opacity: 1;
+    }
+  }
+}
+
+// Update default Bootstrap badges to Metro style
+.badge {
+  border-radius: $border-radius;
+  font-weight: 600;
+}
+
+// Update default Bootstrap progress bars to Metro style
+.progress {
+  border-radius: $border-radius;
+  height: 10px;
+
+  .progress-bar {
+    border-radius: $border-radius;
+  }
+}
+
+// Update default Bootstrap pagination to Metro style
+.pagination {
+  .page-link {
+    border: none;
+    border-radius: $border-radius;
+    margin: 0 5px;
+    color: $dark;
+    background-color: $light;
+    min-width: 40px;
+    text-align: center;
+    box-shadow: 1px 2px 4px 0px rgba(0, 0, 0, 0.1);
+
+    &:hover {
+      background-color: rgba($primary, 0.2);
+      color: $dark;
+    }
+
+    &:focus {
+      box-shadow: none;
+    }
+  }
+
+  .page-item {
+    &.active .page-link {
+      background-color: $primary;
+      border-color: $primary;
+      color: white;
+      box-shadow: 2px 3px 6px 0px rgba(0, 0, 0, 0.2);
+
+      &:hover {
+        background-color: $primary;
+        color: white;
+      }
+    }
+
+    &.disabled .page-link {
+      background-color: #e9ecef;
+      color: #6c757d;
+      opacity: 0.6;
+    }
+  }
+}
+
+// Update default Bootstrap links to Metro style
+a {
+  color: $primary;
+  text-decoration: none;
+
+  &:hover {
+    color: darken($primary, 10%);
+    text-decoration: underline;
+  }
+
+  &:focus {
+    outline: 2px solid $primary;
+    outline-offset: 2px;
+  }
+
+  &.link-unstyled {
+    color: inherit;
+
+    &:hover {
+      color: $primary;
+    }
+  }
+}
+
+// Metro utilities
+.bg {
+  @each $color, $value in $theme-colors {
+    &-#{$color} {
+      background-color: $value !important;
+    }
+  }
+}
+
+.text {
+  @each $color, $value in $theme-colors {
+    &-#{$color} {
+      color: $value !important;
+    }
+  }
+}
+
+// Responsive adjustments for Metro tiles
+@media (max-width: 576px) {
+  .tile {
+    width: calc(50% - 10px);
+    height: 150px;
+    
+    &.tile-large,
+    &.tile-wide {
+      width: calc(100% - 10px);
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .tile {
+    width: calc(50% - 10px);
+    
+    &.tile-wide,
+    &.tile-large {
+      width: calc(100% - 10px);
+    }
+  }
+}

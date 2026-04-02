@@ -1,0 +1,28 @@
+{
+  "name": "paper-reading-webui",
+  "version": "1.0.0",
+  "description": "Paper reading list web UI with Node.js + Express + SQLite",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "jest"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "imap": "^0.8.19",
+    "mailparser": "^3.7.1",
+    "node-fetch": "^2.7.0",
+    "sql.js": "^1.10.3"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}

@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>📚 论文待读列表</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    :root {
+      --bg: #0f1117;
+      --card: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e4e4e7;
+      --muted: #8b8d97;
+      --accent: #5cc9cf;
+      --accent2: #81f895;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --tag-bg: rgba(99, 102, 241, .12);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      margin: 0 auto;
+      padding: 16px
+    }
+
+    .paper-container {
+      max-width: 960px;
+      margin: 0 auto
+    }
+
+    .paper-container.grid-mode {
+      max-width: none;
+      margin: 0;
+      padding: 0 16px
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 4px
+    }
+
+    .btn {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      cursor: pointer;
+      font-size: .82rem;
+      transition: all .15s
+    }
+
+    .btn:hover {
+      border-color: var(--accent);
+      color: var(--accent2)
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff
+    }
+
+    .btn-primary:hover {
+      background: var(--accent2)
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: .82rem;
+      margin-bottom: 16px
+    }
+
+    .stats {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+      flex-wrap: wrap
+    }
+
+    .stat-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 16px;
+      min-width: 80px;
+      text-align: center
+    }
+
+    .stat-num {
+      font-size: 1.3rem;
+      font-weight: 700
+    }
+
+    .stat-label {
+      font-size: .7rem;
+      color: var(--muted);
+      margin-top: 2px
+    }
+
+    .stat-item.unread .stat-num {
+      color: var(--accent2)
+    }
+
+    .stat-item.reading .stat-num {
+      color: var(--yellow)
+    }
+
+    .stat-item.done .stat-num {
+      color: var(--green)
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center
+    }
+
+    .toolbar select,
+    .toolbar input {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-size: .82rem;
+    }
+
+    .toolbar input {
+      flex: 1;
+      min-width: 150px
+    }
+
+    .toolbar input:focus,
+    .toolbar select:focus {
+      outline: none;
+      border-color: var(--accent)
+    }
+
+    .paper {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      transition: border-color .2s
+    }
+
+    .paper:hover {
+      border-color: var(--accent)
+    }
+
+    .paper.reading {
+      border-left: 3px solid var(--yellow)
+    }
+
+    .paper.done {
+      border-left: 3px solid var(--green);
+      opacity: .7
+    }
+
+    .paper-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 4px
+    }
+
+    .done-section {
+      margin-top: 24px
+    }
+
+    .done-section .papers-wrap {
+      display: none
+    }
+
+    .done-section.open .papers-wrap {
+      display: block
+    }
+
+    .done-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      padding: 10px 14px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: all .15s
+    }
+
+    .done-toggle:hover {
+      border-color: var(--green)
+    }
+
+    .done-toggle .arrow {
+      transition: transform .2s;
+      font-size: .7rem;
+      color: var(--green)
+    }
+
+    .done-section.open .done-toggle .arrow {
+      transform: rotate(90deg)
+    }
+
+    .done-toggle .done-info {
+      font-size: .85rem;
+      color: var(--muted)
+    }
+
+    .done-toggle .done-count {
+      color: var(--green);
+      font-weight: 600
+    }
+
+    .done-section .cat-header {
+      opacity: .6
+    }
+
+    .paper-num {
+      background: var(--accent);
+      color: #fff;
+      font-size: .65rem;
+      font-weight: 700;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px
+    }
+
+    .paper-title {
+      font-size: .92rem;
+      font-weight: 600;
+      line-height: 1.4;
+      flex: 1
+    }
+
+    .paper-title a {
+      color: var(--text);
+      text-decoration: none
+    }
+
+    .paper-title a:hover {
+      color: var(--accent2)
+    }
+
+    .paper-meta {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .paper-meta .id {
+      font-family: monospace;
+      color: var(--accent2)
+    }
+
+    .paper-abstract {
+      font-size: .8rem;
+      color: #b8b8c0;
+      line-height: 1.5;
+      border-left: 3px solid var(--accent);
+      padding-left: 10px;
+      margin: 6px 0
+    }
+
+    .paper-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 6px
+    }
+
+    .tag {
+      background: var(--tag-bg);
+      color: var(--accent2);
+      font-size: .68rem;
+      padding: 2px 7px;
+      border-radius: 4px
+    }
+
+    .paper-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px
+    }
+
+    .paper-actions .btn {
+      font-size: .72rem;
+      padding: 3px 10px
+    }
+
+    .ai-summary {
+      font-size: .82rem;
+      color: #c4c8d4;
+      line-height: 1.55;
+      border-left: 3px solid var(--green);
+      padding: 8px 12px;
+      margin: 8px 0;
+      background: rgba(52, 211, 153, .05);
+      border-radius: 0 6px 6px 0;
+      display: none
+    }
+
+    .ai-summary.visible {
+      display: block
+    }
+
+    .ai-summary .label {
+      font-size: .68rem;
+      color: var(--green);
+      font-weight: 600;
+      margin-bottom: 3px
+    }
+
+    .btn-ai {
+      border-color: var(--green) !important;
+      color: var(--green) !important
+    }
+
+    .btn-ai:hover {
+      background: rgba(52, 211, 153, .1) !important
+    }
+
+    .btn-ai.loading {
+      opacity: .6;
+      pointer-events: none
+    }
+
+    .stars {
+      flex-shrink: 0;
+      color: var(--yellow);
+      font-size: .72rem;
+      letter-spacing: 1px
+    }
+
+    .ai-stars {
+      flex-shrink: 0;
+      font-size: .85rem;
+      letter-spacing: 2px;
+      cursor: default
+    }
+
+    .ai-stars .label {
+      font-size: .6rem;
+      color: var(--muted);
+      margin-right: 2px;
+      font-weight: 400
+    }
+
+    .user-rating {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      margin-top: 6px
+    }
+
+    .user-rating .label {
+      font-size: .68rem;
+      color: var(--muted);
+      margin-right: 4px
+    }
+
+    .user-rating .star-btn {
+      background: none;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 1px;
+      line-height: 1;
+      transition: transform .15s
+    }
+
+    .user-rating .star-btn:hover {
+      transform: scale(1.3)
+    }
+
+    .user-rating .star-btn.active {
+      color: var(--yellow)
+    }
+
+    .user-rating .star-btn.inactive {
+      color: var(--border)
+    }
+
+    .user-rating .star-btn:disabled {
+      cursor: default;
+      opacity: .7
+    }
+
+    .cat-header {
+      font-size: .95rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin: 20px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .cat-header .badge {
+      background: var(--tag-bg);
+      color: var(--accent2);
+      font-size: .72rem;
+      padding: 2px 8px;
+      border-radius: 10px
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .6);
+      z-index: 100;
+      justify-content: center;
+      align-items: center
+    }
+
+    .modal-overlay.active {
+      display: flex
+    }
+
+    .modal {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 90%;
+      max-width: 560px;
+      max-height: 85vh;
+      overflow-y: auto
+    }
+
+    .modal h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: var(--accent2)
+    }
+
+    .modal label {
+      display: block;
+      font-size: .8rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      margin-top: 10px
+    }
+
+    .modal input,
+    .modal textarea,
+    .modal select {
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: .85rem;
+      font-family: inherit;
+    }
+
+    .modal textarea {
+      resize: vertical;
+      min-height: 80px
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      justify-content: flex-end
+    }
+
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px;
+      font-size: .9rem
+    }
+
+    .source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: .68rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 500;
+      white-space: nowrap
+    }
+
+    .source-badge.paper {
+      background: rgba(99, 102, 241, .12);
+      color: var(--accent2)
+    }
+
+    .source-badge.wechat_article {
+      background: rgba(7, 193, 96, .12);
+      color: #07c160
+    }
+
+    .source-badge.twitter_thread {
+      background: rgba(29, 161, 242, .12);
+      color: #1da1f2
+    }
+
+    .source-badge.blog_post {
+      background: rgba(251, 191, 36, .12);
+      color: var(--yellow)
+    }
+
+    .source-badge.video {
+      background: rgba(248, 113, 113, .12);
+      color: var(--red)
+    }
+
+    .source-badge.other {
+      background: rgba(139, 141, 151, .12);
+      color: var(--muted)
+    }
+
+    .paper.wechat_article {
+      border-left: 3px solid #07c160
+    }
+
+    .paper.twitter_thread {
+      border-left: 3px solid #1da1f2
+    }
+
+    .paper.blog_post {
+      border-left: 3px solid var(--yellow)
+    }
+
+    .paper.video {
+      border-left: 3px solid var(--red)
+    }
+
+    .import-loading {
+      opacity: .6;
+      pointer-events: none
+    }
+
+    @media(max-width:600px) {
+      body {
+        padding: 10px
+      }
+
+      .paper {
+        padding: 10px 12px
+      }
+
+      .stats {
+        gap: 8px
+      }
+
+      .stat-item {
+        padding: 8px 10px;
+        min-width: 60px
+      }
+
+      .toolbar {
+        flex-direction: column
+      }
+
+      .toolbar input {
+        width: 100%
+      }
+    }
+
+    /* 网格布局 */
+    .paper-container.grid-mode {
+      width: 100%;
+      max-width: 100%
+    }
+
+    .paper-container.grid-mode>.header,
+    .paper-container.grid-mode>.stats,
+    .paper-container.grid-mode>.toolbar {
+      width: 100%;
+      max-width: 100%
+    }
+
+    .paper-container.grid-mode .paper-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px
+    }
+
+    .paper-container.grid-mode .paper-grid .paper {
+      min-width: 360px;
+      flex: 0 0 calc(25% - 9px);
+      max-width: calc(25% - 9px)
+    }
+
+    .paper-container.grid-mode .paper-grid .paper:only-child {
+      min-width: 600px;
+      flex: 0 0 100%;
+      max-width: 100%
+    }
+
+    .paper-container.grid-mode .paper-grid .paper:last-child:nth-child(2n+1) {
+      flex: 0 0 calc(50% - 6px);
+      max-width: calc(50% - 6px)
+    }
+
+    .paper-container.grid-mode .paper-grid .paper:last-child:nth-child(3n+1) {
+      flex: 0 0 calc(33.33% - 8px);
+      max-width: calc(33.33% - 8px)
+    }
+
+    @media(max-width:1400px) {
+      .paper-container.grid-mode .paper-grid .paper {
+        flex: 0 0 calc(33.33% - 8px);
+        max-width: calc(33.33% - 8px)
+      }
+    }
+
+    @media(max-width:1000px) {
+      .paper-container.grid-mode .paper-grid .paper {
+        flex: 0 0 calc(50% - 6px);
+        max-width: calc(50% - 6px)
+      }
+    }
+
+    @media(max-width:700px) {
+      .paper-container.grid-mode .paper-grid .paper {
+        flex: 0 0 100%;
+        max-width: 100%;
+        min-width: 0
+      }
+    }
+
+    .paper-container:not(.grid-mode) {
+      max-width: 960px;
+      margin: 0 auto
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="appContainer" class="paper-container">
+    <h1>📚 论文待读列表</h1>
+    <div class="header">
+      <p class="subtitle" id="subtitle">加载中...</p>
+      <button class="btn btn-primary" onclick="PaperApp.openAddModal()">＋ 添加论文</button>
+      <button class="btn" id="importUrlBtn" onclick="PaperApp.openImportUrlModal()"
+        style="border-color:#1da1f2;color:#1da1f2">🔗 从 URL 导入</button>
+      <button class="btn" id="syncBtn" onclick="PaperApp.syncEmails()"
+        style="border-color:var(--green);color:var(--green)">📬 同步邮箱</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div id="bgSummaryBar"
+      style="display:none;margin:8px 0;padding:10px 14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:8px;font-size:.85rem">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span>🤖 AI 处理中（摘要+分类+打星）...</span>
+        <span id="bgSummaryProgress" style="color:var(--green);font-weight:600">0/0</span>
+        <span id="bgSummaryCurrent"
+          style="color:var(--muted);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"></span>
+        <button onclick="PaperApp.stopBgSummary()"
+          style="background:none;border:1px solid var(--red);color:var(--red);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:.8rem">停止</button>
+      </div>
+      <div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden">
+        <div id="bgSummaryFill"
+          style="height:100%;background:var(--green);border-radius:4px;transition:width .5s;width:0%"></div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <select id="filterCat" onchange="PaperApp.render()">
+        <option value="">全部分类</option>
+      </select>
+      <select id="filterStatus" onchange="PaperApp.render()">
+        <option value="">全部状态</option>
+        <option value="unread">未读</option>
+        <option value="reading">阅读中</option>
+        <option value="done">已读</option>
+      </select>
+      <select id="filterSourceType" onchange="PaperApp.render()">
+        <option value="">全部来源</option>
+        <option value="paper">📄 论文</option>
+        <option value="wechat_article">💬 微信文章</option>
+        <option value="twitter_thread">🐦 推文</option>
+        <option value="blog_post">📝 博客</option>
+        <option value="video">🎬 视频</option>
+      </select>
+      <select id="sortBy" onchange="PaperApp.render()">
+        <option value="priority">按优先级</option>
+        <option value="stars">按 AI 推荐</option>
+        <option value="date">按时间</option>
+        <option value="title">按标题</option>
+      </select>
+      <input type="text" id="searchBox" placeholder="搜索标题/作者/标签..." oninput="PaperApp.render()">
+      <select id="layoutMode" onchange="PaperApp.render()" style="width:auto">
+        <option value="grid" selected>▦ 网格</option>
+        <option value="list">▤ 列表</option>
+      </select>
+    </div>
+
+    <div id="paperList"></div>
+
+    <!-- URL 导入模态框 -->
+    <div class="modal-overlay" id="importUrlModal">
+      <div class="modal">
+        <h2>🔗 从 URL 导入</h2>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">支持微信文章、推文(Twitter/X)、技术博客、arXiv 论文等。AI
+          将自动提取标题、摘要、分类。</p>
+        <label>URL *</label>
+        <input type="text" id="importUrl" placeholder="https://mp.weixin.qq.com/s/... 或 https://x.com/...">
+        <label>优先级 (1-5)</label>
+        <input type="number" id="importPriority" min="1" max="5" value="3">
+        <label>补充标签（可选）</label>
+        <input type="text" id="importTags" placeholder="tag1, tag2（AI 会自动生成，这里可补充）">
+        <label>备注（可选）</label>
+        <input type="text" id="importNotes" placeholder="来源说明、阅读背景...">
+        <div id="importResult"
+          style="display:none;margin-top:12px;padding:10px 12px;border-radius:6px;font-size:.82rem;border:1px solid var(--border)">
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="PaperApp.closeImportUrlModal()">取消</button>
+          <button class="btn btn-primary" id="importUrlSubmit" onclick="PaperApp.doImportUrl()">🤖 AI 导入</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 添加/编辑模态框 -->
+    <div class="modal-overlay" id="modal">
+      <div class="modal">
+        <h2 id="modalTitle">添加论文</h2>
+        <input type="hidden" id="editId">
+        <label>标题 *</label>
+        <input type="text" id="fTitle" placeholder="论文标题">
+        <label>作者</label>
+        <input type="text" id="fAuthors" placeholder="作者列表">
+        <label>来源</label>
+        <select id="fSource">
+          <option value="arXiv">arXiv</option>
+          <option value="ACM DL">ACM DL</option>
+          <option value="Oxford Computer Journal">Oxford</option>
+          <option value="ResearchGate">ResearchGate</option>
+          <option value="微信公众号">微信公众号</option>
+          <option value="Twitter/X">Twitter/X</option>
+          <option value="Blog">Blog</option>
+          <option value="其他">其他</option>
+        </select>
+        <label>内容类型</label>
+        <select id="fSourceType">
+          <option value="paper">📄 论文</option>
+          <option value="wechat_article">💬 微信文章</option>
+          <option value="twitter_thread">🐦 推文</option>
+          <option value="blog_post">📝 博客</option>
+          <option value="video">🎬 视频</option>
+          <option value="other">🔗 其他</option>
+        </select>
+        <label>链接</label>
+        <input type="text" id="fUrl" placeholder="https://arxiv.org/abs/...">
+        <label>arXiv ID</label>
+        <input type="text" id="fArxivId" placeholder="如 2512.17452">
+        <label>分类</label>
+        <input type="text" id="fCategory" placeholder="如 KV Cache 优化">
+        <label>优先级 (1-5)</label>
+        <input type="number" id="fPriority" min="1" max="5" value="3">
+        <label>标签（逗号分隔）</label>
+        <input type="text" id="fTags" placeholder="tag1, tag2, tag3">
+        <label>摘要 / 笔记</label>
+        <textarea id="fAbstract" placeholder="论文核心内容..."></textarea>
+        <div class="modal-actions">
+          <button class="btn" onclick="PaperApp.closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="PaperApp.savePaper()">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="src/web/api.js"></script>
+    <script src="src/web/components.js"></script>
+    <script src="src/web/app.js"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('importUrl').addEventListener('keydown', e => {
+          if (e.key === 'Enter') PaperApp.doImportUrl();
+        });
+
+        document.getElementById('modal').addEventListener('click', e => {
+          if (e.target === document.getElementById('modal')) PaperApp.closeModal();
+        });
+        document.getElementById('importUrlModal').addEventListener('click', e => {
+          if (e.target === document.getElementById('importUrlModal')) PaperApp.closeImportUrlModal();
+        });
+
+        PaperApp.init();
+      });
+    </script>
+</body>
+
+</html>
