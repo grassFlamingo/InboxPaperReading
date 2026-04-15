@@ -60,3 +60,7 @@ Add a dictionary of technological terms (术语) to help with better translation
 - [ ] Consider adding term frequency analysis
 - [ ] Add bulk verify feature
 - [ ] Consider fuzzy matching for term lookup
+
+## Bug Fixes
+
+7. **Email sync**: Fixed "UID/seqno must be an integer" error by adding null checks for `uid` in email fetch callback and filtering invalid UIDs before calling `setFlags`

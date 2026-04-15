@@ -334,6 +334,10 @@ class EmailSyncService {
             msg.on('body', (stream) => {
               stream.on('data', (chunk) => chunks.push(chunk));
               stream.on('end', async () => {
+                if (!uid || uid === undefined) {
+                  console.warn('[Email] Skipping message without UID, seqno:', seqno);
+                  return;
+                }
                 const buffer = Buffer.concat(chunks);
                 const parsed = await EmailParser.parse(buffer);
                 if (parsed) {
@@ -354,7 +358,12 @@ class EmailSyncService {
 
   markEmailsAsRead(uids) {
     if (!uids || uids.length === 0) return;
-    this.imap.setFlags(uids, ['\\Seen'], (err) => {
+    const validUids = uids.filter(uid => uid && typeof uid === 'number');
+    if (validUids.length === 0) {
+      console.warn('[Email] No valid UIDs to mark as read');
+      return;
+    }
+    this.imap.setFlags(validUids, ['\\Seen'], (err) => {
       if (err) {
         console.warn('[Email] Failed to mark emails as read:', err.message);
       } else {
@@ -377,6 +386,7 @@ class EmailSyncService {
 
       const emailArxivMap = {};
       for (const email of emails) {
+        if (!email.uid) continue;
         emailArxivMap[email.uid] = email.arxivIds;
       }
 
