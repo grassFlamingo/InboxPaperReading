@@ -59,19 +59,65 @@ async function downloadPaper(paper) {
       previewBase64 = `data:image/png;base64,${previewImage.toString('base64')}`;
     }
 
+    const pageInfo = await extractTitleLocation(filePath);
+
     db.runQuery(`
       INSERT INTO cached_papers (paper_id, file_path, file_size, preview_image)
       VALUES (?, ?, ?, ?)
     `, [paper.id, filePath, buffer.length, previewBase64]);
 
-    if (previewBase64) {
-      db.runQuery('UPDATE papers SET preview_image = ? WHERE id = ?', [previewBase64, paper.id]);
+    if (previewBase64 || pageInfo) {
+      db.runQuery('UPDATE papers SET preview_image = ?, title_location = ? WHERE id = ?', 
+        [previewBase64, pageInfo ? JSON.stringify(pageInfo) : null, paper.id]);
     }
 
-    return { success: true, msg: 'cached', file_path: filePath, preview: !!previewBase64 };
+    return { success: true, msg: 'cached', file_path: filePath, preview: !!previewBase64, title_location: pageInfo };
   } catch (e) {
     console.error('[Cache] Download failed:', e.message);
     return { success: false, msg: e.message };
+  }
+}
+
+async function extractTitleLocation(pdfPath) {
+  try {
+    const { execSync } = require('child_process');
+    const result = execSync(`python3 -c "
+from pdfminer.high_level import extract_text, extract_pages
+from pdfminer.layout import LTTextContainer, LTChar, LTAnno, LAParams
+import json
+import re
+
+laparams = LAParams(line_margin=0.5, word_margin=0.1, char_margin=2.0)
+text = extract_text('${pdfPath.replace(/'/g, "'\\''")}', laparams=laparams)
+
+lines = [l.strip() for l in text.split('\\n') if l.strip()]
+
+result = {'first_lines': lines[:10], 'title_location': None}
+
+# Find title: first line that's not email/doi/arXiv related, has reasonable length
+for i, line in enumerate(lines[:8]):
+    if len(line) > 15 and len(line) < 300:
+        # Skip lines with common non-title patterns
+        lower = line.lower()
+        if any(x in lower for x in ['@', 'http', 'doi', 'arxiv:', 'email', 'university', 'department']):
+            continue
+        # Title often has mixed case or specific patterns
+        if not line.isupper() and not line.islower():
+            result['title_location'] = {'line': i, 'text': line[:150], 'y_ratio': i * 0.12}
+            break
+        elif len(line) > 30:
+            result['title_location'] = {'line': i, 'text': line[:150], 'y_ratio': i * 0.12}
+            break
+
+print(json.dumps(result))
+"`, { timeout: 30000, encoding: 'utf8' });
+
+    const info = JSON.parse(result.trim());
+    console.log(`[Cache] Title: line ${info.title_location?.line}: ${info.title_location?.text?.substring(0, 50)}`);
+    return info.title_location;
+  } catch (e) {
+    console.log('[Cache] Title extraction failed:', e.message);
+    return null;
   }
 }
 
@@ -116,10 +162,52 @@ function deleteCachedPaper(paperId) {
   }
 }
 
+async function regeneratePreview(paperId) {
+  const cached = getCachedPaper(paperId);
+  if (!cached || !cached.file_path || !fs.existsSync(cached.file_path)) {
+    return { success: false, msg: 'cached file not found' };
+  }
+
+  console.log(`[Cache] Regenerating preview for #${paperId}`);
+
+  try {
+    const previewImage = await extractPreview(cached.file_path);
+    let previewBase64 = null;
+    if (previewImage) {
+      previewBase64 = `data:image/png;base64,${previewImage.toString('base64')}`;
+    }
+
+    const pageInfo = await extractTitleLocation(cached.file_path);
+
+    db.runQuery('UPDATE cached_papers SET preview_image = ? WHERE paper_id = ?', [previewBase64, paperId]);
+    db.runQuery('UPDATE papers SET preview_image = ?, title_location = ? WHERE id = ?', 
+      [previewBase64, pageInfo ? JSON.stringify(pageInfo) : null, paperId]);
+
+    return { success: true, preview: !!previewBase64, title_location: pageInfo };
+  } catch (e) {
+    console.error('[Cache] Regenerate failed:', e.message);
+    return { success: false, msg: e.message };
+  }
+}
+
+async function regenerateAllPreviews() {
+  const cached = getAllCachedPapers();
+  console.log(`[Cache] Regenerating previews for ${cached.length} cached papers`);
+
+  const results = [];
+  for (const c of cached) {
+    const result = await regeneratePreview(c.paper_id);
+    results.push({ paper_id: c.paper_id, ...result });
+  }
+  return results;
+}
+
 module.exports = {
   getCachedPaper,
   getAllCachedPapers,
   downloadPaper,
   deleteCachedPaper,
+  regeneratePreview,
+  regenerateAllPreviews,
   CACHE_DIR
 };

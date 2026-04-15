@@ -191,6 +191,18 @@ IMPORTANT: Do NOT use <think/> tags. Reply directly with JSON only.`;
     res.setHeader('Content-Disposition', 'inline');
     res.sendFile(cached.file_path);
   });
+
+  // POST /api/papers/:id/regenerate-preview - Regenerate preview for cached PDF
+  app.post('/api/papers/:id/regenerate-preview', async (req, res) => {
+    const result = await cacheService.regeneratePreview(parseInt(req.params.id));
+    res.json(result);
+  });
+
+  // POST /api/papers/regenerate-all-previews - Regenerate all preview images
+  app.post('/api/papers/regenerate-all-previews', async (req, res) => {
+    const results = await cacheService.regenerateAllPreviews();
+    res.json({ count: results.length, results });
+  });
 }
 
 const fs = require('fs');

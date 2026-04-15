@@ -103,7 +103,19 @@ function renderCard(p, idx, options = {}) {
 
   const previewHtml = hasPreview ? `<div class="paper-preview"><img src="${p.preview_image}" alt="preview"></div>` : '';
   const titleWithPreview = hasPreview ? ` data-preview="true"` : '';
-  const tooltipHtml = hasPreview ? `<div class="paper-tooltip" style="background-image:url(${p.preview_image})"></div>` : '';
+  let titleFromPdf = '';
+  let yPos = 0;
+  try {
+    if (p.title_location) {
+      const loc = JSON.parse(p.title_location);
+      titleFromPdf = loc.text || '';
+      yPos = loc.y_ratio || 0;
+    }
+  } catch (e) {}
+  const tooltipTitle = titleFromPdf || p.title;
+  const bgPos = yPos > 0 ? `background-position:center ${Math.min(yPos * 100, 80)}%` : 'background-position:center top';
+  const tooltipStyle = hasPreview ? `background-image:url(${p.preview_image});${bgPos}` : '';
+  const tooltipHtml = hasPreview ? `<div class="paper-tooltip" style="${tooltipStyle}" data-title="${esc(tooltipTitle)}"></div>` : '';
 
   return `
     <div class="${cardClass}">

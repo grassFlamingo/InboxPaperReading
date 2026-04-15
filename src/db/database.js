@@ -135,6 +135,9 @@ function migrate() {
   if (!paperCols.includes('preview_image')) {
     db.run(`ALTER TABLE papers ADD COLUMN preview_image TEXT`);
   }
+  if (!paperCols.includes('title_location')) {
+    db.run(`ALTER TABLE papers ADD COLUMN title_location TEXT`);
+  }
 
   saveDb();
 }
