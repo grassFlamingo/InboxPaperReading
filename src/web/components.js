@@ -13,6 +13,7 @@ function renderMarkdown(text) {
 }
 
 function paperUrl(p) {
+  if (p.cached_file_path && p.cached_file_path.length > 10) return `/api/papers/${p.id}/file`;
   if (p.arxiv_id) return `https://arxiv.org/pdf/${p.arxiv_id}`;
   return p.source_url || '#';
 }
@@ -91,18 +92,35 @@ function renderCard(p, idx, options = {}) {
   const hasMarkdown = p.markdown_content && p.markdown_content.length > 50;
   const hasPreview = p.preview_image && p.preview_image.length > 50;
   const isArxiv = p.arxiv_id && srcType === 'paper';
+  const isCached = p.cached_file_path && p.cached_file_path.length > 10;
+  const useCached = isCached ? 1 : 0;
+  const isWebContent = WEB_CONTENT_TYPES.includes(srcType);
   
   let readBtn = '';
-  if (WEB_CONTENT_TYPES.includes(srcType)) {
+  if (isWebContent) {
     readBtn = `<button class="btn" id="readerBtn-${p.id}" onclick="PaperApp.openReader(${p.id})">${hasMarkdown ? '📖 阅读' : '📄 阅读'}</button>`;
-  } else if (isArxiv && hasPreview) {
-    readBtn = `<button class="btn" onclick="PaperApp.openPdf(${p.id})">📄 阅读</button>`;
+  } else if (isArxiv && (hasPreview || isCached)) {
+    readBtn = `<button class="btn" onclick="PaperApp.openPdf(${p.id},${useCached})">📄 阅读</button>`;
   } else if (isArxiv) {
     readBtn = `<button class="btn" id="cacheBtn-${p.id}" onclick="PaperApp.cachePaper(${p.id})">⬇ 缓存</button>`;
   }
 
-  const previewHtml = hasPreview ? `<div class="paper-preview"><img src="${p.preview_image}" alt="preview"></div>` : '';
-  const titleWithPreview = hasPreview ? ` data-preview="true"` : '';
+  let cropStyle = '';
+  try {
+    if (p.layout_data) {
+      const layout = JSON.parse(p.layout_data);
+      if (layout.title_bbox) {
+        const tb = layout.title_bbox;
+        const yRatio = (tb.y1 + tb.y0) / 2 / 800;
+        const cropPos = Math.min(Math.max(yRatio * 100, 10), 70);
+        cropStyle = `object-position:center ${cropPos}%;`;
+      }
+    }
+  } catch (e) {}
+  const previewImg = hasPreview ? `<img src="${p.preview_image}" alt="preview"${cropStyle ? ` style="${cropStyle}"` : ''}>` : '';
+  const paperLink = paperUrl(p);
+  const tooltipId = hasPreview ? `tooltip-${p.id}` : '';
+  const previewHtml = hasPreview ? `<a href="${paperLink}" target="_blank" rel="noopener" class="paper-preview" data-tooltip="${tooltipId}">${previewImg}</a>` : '';
   let titleFromPdf = '';
   let yPos = 0;
   try {
@@ -111,18 +129,32 @@ function renderCard(p, idx, options = {}) {
       titleFromPdf = loc.text || '';
       yPos = loc.y_ratio || 0;
     }
+    if (p.layout_data) {
+      const layout = JSON.parse(p.layout_data);
+      if (layout.title_bbox && layout.title_label) {
+        const detectedTitle = layout.title_label === 'doc_title' ? '' : layout.title_bbox?.text || '';
+        if (detectedTitle) {
+          titleFromPdf = detectedTitle;
+          yPos = layout.title_bbox.y1 / (p.preview_image ? 800 : 1) * 0.15;
+        } else if (!titleFromPdf) {
+          titleFromPdf = p.title;
+        }
+      }
+    }
   } catch (e) {}
   const tooltipTitle = titleFromPdf || p.title;
   const bgPos = yPos > 0 ? `background-position:center ${Math.min(yPos * 100, 80)}%` : 'background-position:center top';
   const tooltipStyle = hasPreview ? `background-image:url(${p.preview_image});${bgPos}` : '';
-  const tooltipHtml = hasPreview ? `<div class="paper-tooltip" style="${tooltipStyle}" data-title="${esc(tooltipTitle)}"></div>` : '';
+  const tooltipHtml = hasPreview ? `<div id="${tooltipId}" class="paper-tooltip" style="${tooltipStyle}" data-title="${esc(tooltipTitle)}"></div>` : '';
+  const titleWithPreviewAttr = hasPreview ? ` data-tooltip="${tooltipId}"` : '';
 
   return `
     <div class="${cardClass}">
       ${previewHtml}
+      ${tooltipHtml}
       <div class="paper-header">
         ${numHtml}
-        <div class="paper-title"${titleWithPreview}>${tooltipHtml}${STATUS_ICONS[status]} <a href="${esc(href)}" target="_blank" rel="noopener"${onClick}>${esc(p.title)}</a></div>
+        <div class="paper-title"${titleWithPreviewAttr}>${STATUS_ICONS[status]} <a href="${esc(href)}" target="_blank" rel="noopener"${onClick}>${esc(p.title)}</a></div>
         ${renderAiStars(p.stars)}
       </div>
       <div class="paper-meta">

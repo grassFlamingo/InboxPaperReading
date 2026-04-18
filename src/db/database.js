@@ -138,6 +138,9 @@ function migrate() {
   if (!paperCols.includes('title_location')) {
     db.run(`ALTER TABLE papers ADD COLUMN title_location TEXT`);
   }
+  if (!paperCols.includes('layout_data')) {
+    db.run(`ALTER TABLE papers ADD COLUMN layout_data TEXT`);
+  }
 
   saveDb();
 }

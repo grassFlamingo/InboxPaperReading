@@ -11,9 +11,13 @@
 <body>
 
   <div id="appContainer" class="paper-container">
-    <h1>论文待读列表</h1>
-    <div class="header">
-      <p class="subtitle" id="subtitle">加载中...</p>
+    <div class="header-main">
+      <div>
+        <h1>论文待读列表</h1>
+        <p class="subtitle" id="subtitle"></p>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div style="margin-left: auto;"></div>
       <div class="header-actions">
         <button class="btn" onclick="TechTermsApp.show()" style="border-color:#a78bfa;color:#a78bfa">术语</button>
         <button class="btn" id="syncBtn" onclick="PaperApp.syncEmails()"
@@ -23,8 +27,6 @@
         <button class="btn btn-primary" onclick="PaperApp.openAddModal()">＋ 添加</button>
       </div>
     </div>
-
-    <div class="stats" id="stats"></div>
 
     <div id="bgSummaryBar"
       style="display:none;margin:8px 0;padding:10px 14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:8px;font-size:.85rem">

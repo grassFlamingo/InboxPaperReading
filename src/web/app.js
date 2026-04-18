@@ -4,6 +4,21 @@ function esc(s) {
   return d.innerHTML;
 }
 
+let lastTooltipEl = null;
+const TOOLTIP_W = 600, TOOLTIP_H = 850;
+
+function showTooltip(el, x, y) {
+  if (lastTooltipEl && lastTooltipEl !== el) hideTooltip(lastTooltipEl);
+  let tx = x + 15, ty = y + 15;
+  if (tx + TOOLTIP_W > window.innerWidth) tx = x - TOOLTIP_W - 15;
+  if (ty + TOOLTIP_H > window.innerHeight) ty = y - TOOLTIP_H - 15;
+  el.style.setProperty('--tx', tx + 'px');
+  el.style.setProperty('--ty', ty + 'px');
+  el.style.display = 'block';
+  lastTooltipEl = el;
+}
+function hideTooltip(el) { el.style.display = 'none'; lastTooltipEl = null; }
+
 const PaperApp = {
   papers: [],
   categories: [],
@@ -22,7 +37,7 @@ const PaperApp = {
   async loadStats() {
     const s = await PaperAPI.getStats();
     document.getElementById('stats').innerHTML = RenderUtils.renderStats(s);
-    document.getElementById('subtitle').textContent = `SQLite 驱动 · 实时渲染 · ${s.total} 篇`;
+    // document.getElementById('subtitle').textContent = `SQLite 驱动 · 实时渲染 · ${s.total} 篇`;
   },
 
   async render() {
@@ -467,8 +482,17 @@ const PaperApp = {
     }
   },
 
-  async openPdf(id) {
-    window.open(`/api/papers/${id}/file`, '_blank');
+  async openPdf(id, useCached = 0) {
+    if (useCached) {
+      window.open(`/api/papers/${id}/file`, '_blank');
+    } else {
+      const paper = this.papers.find(p => p.id === id);
+      if (paper?.arxiv_id) {
+        window.open(`https://arxiv.org/pdf/${paper.arxiv_id}.pdf`, '_blank');
+      } else {
+        window.open(`/api/papers/${id}/file`, '_blank');
+      }
+    }
   }
 };
 
@@ -617,3 +641,21 @@ const TechTermsApp = {
 };
 
 window.TechTermsApp = TechTermsApp;
+
+document.addEventListener('mouseover', e => {
+  const triggers = e.target.closest('[data-tooltip]') || e.target.closest('.paper-title[data-preview]') || e.target.closest('.paper-preview');
+  if (!triggers) return;
+  const tooltipId = triggers.dataset?.tooltip;
+  if (!tooltipId) return;
+  const tooltipEl = document.getElementById(tooltipId);
+  if (tooltipEl) showTooltip(tooltipEl, e.clientX, e.clientY);
+});
+document.addEventListener('mousemove', e => {
+  if (lastTooltipEl) {
+    lastTooltipEl.style.setProperty('--tx', (e.clientX + 15) + 'px');
+    lastTooltipEl.style.setProperty('--ty', (e.clientY + 15) + 'px');
+  }
+});
+document.addEventListener('mouseout', e => {
+  if (lastTooltipEl) hideTooltip(lastTooltipEl);
+});

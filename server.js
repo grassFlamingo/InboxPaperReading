@@ -30,7 +30,7 @@ app.use(express.static(__dirname));
 // Routes
 const setupPaperRoutes = require('./src/routes/papers');
 const setupSummaryRoutes = require('./src/routes/summary');
-const { setupBgWorkerRoutes, startBgSummary, startBgFetch, startBgMarkdown, startBgCache } = require('./src/routes/worker');
+const { setupBgWorkerRoutes, startBgSummary, startBgFetch, startBgMarkdown, startBgCache, startBgLayout } = require('./src/routes/worker');
 const { setupTechTermsRoutes } = require('./src/routes/techterms');
 const { startEmailSync } = require('./src/services/email');
 
@@ -61,19 +61,27 @@ const PORT = config.PORT;
     setTimeout(() => {
       startBgFetch();
       console.log('[BG-Fetch] Auto-fetch metadata will start in 5 seconds...');
-      setTimeout(() => {
-        startBgMarkdown();
-        console.log('[BG-MD] Auto-markdown conversion will start in 7 seconds...');
-        setTimeout(() => {
-          startBgCache();
-          console.log('[BG-Cache] Auto-PDF cache will start in 9 seconds...');
-          setTimeout(() => {
-            startBgSummary();
-            console.log('[BG-AI] Auto-summary will start in 12 seconds...');
-          }, 3000);
-        }, 2000);
-      }, 5000);
     }, config.BG_WORKER.DELAY_MS);
+
+    setTimeout(() => {
+      startBgMarkdown();
+      console.log('[BG-MD] Auto-markdown conversion will start in 7 seconds...');
+    }, config.BG_WORKER.DELAY_MS + 2000);
+
+    setTimeout(() => {
+      startBgCache();
+      console.log('[BG-Cache] Auto-PDF cache will start in 9 seconds...');
+    }, config.BG_WORKER.DELAY_MS + 5000);
+
+    setTimeout(() => {
+      startBgLayout();
+      console.log('[BG-Layout] Auto-layout analysis will start in 10 seconds...');
+    }, config.BG_WORKER.DELAY_MS + 7000);
+
+    setTimeout(() => {
+      startBgSummary();
+      console.log('[BG-AI] Auto-summary will start in 12 seconds...');
+    }, config.BG_WORKER.DELAY_MS + 10000);
 
     // Start scheduled email sync
     startEmailSync();

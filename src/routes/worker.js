@@ -5,6 +5,7 @@ const { PaperMetadataFetcher } = require('../services/email');
 const { extractTechTermsFromText, upsertTechTerm } = require('./techterms');
 const { processMarkdownConversion, WEB_CONTENT_TYPES } = require('../services/markdown');
 const cacheService = require('../services/cache');
+const layoutService = require('../services/layoutAnalysis');
 
 const bgState = {
   running: false,
@@ -123,6 +124,15 @@ const WORKER_TASKS = {
     process: async (p) => {
       return await cacheService.downloadPaper(p);
     }
+  },
+
+  layout: {
+    name: 'layout',
+    label: 'Doc Layout',
+    getQuery: () => layoutService.getPapersNeedingLayoutAnalysis(),
+    process: async (p) => {
+      return await layoutService.runLayoutAnalysisForPaper(p.id);
+    }
   }
 };
 
@@ -178,6 +188,7 @@ function setupBgWorkerRoutes(app) {
     if (current === 'fetch') label = 'Metadata';
     else if (current === 'markdown') label = 'Markdown';
     else if (current === 'cache') label = 'Cache PDF';
+    else if (current === 'layout') label = 'Doc Layout';
     else if (current === 'summarize') label = 'AI Summary';
     else if (current && current.includes(':')) label = current;
     
@@ -188,6 +199,17 @@ function setupBgWorkerRoutes(app) {
       total: bgState.total,
       done: bgState.done,
       errors: bgState.errors
+    });
+  });
+
+  app.get('/api/summary-status', (req, res) => {
+    const isSummarizing = bgState.current === 'summarize' || (bgState.current && bgState.current.startsWith('summarize:'));
+    res.json({
+      running: isSummarizing,
+      task: isSummarizing ? 'summarize' : 'idle',
+      total: bgState.total,
+      done: bgState.done,
+      current: bgState.current || ''
     });
   });
 
@@ -211,5 +233,6 @@ module.exports = {
   startBgSummary: () => runBgWorker('summarize'),
   startBgFetch: () => runBgWorker('fetch'),
   startBgMarkdown: () => runBgWorker('markdown'),
-  startBgCache: () => runBgWorker('cache')
+  startBgCache: () => runBgWorker('cache'),
+  startBgLayout: () => runBgWorker('layout')
 };

@@ -10,7 +10,7 @@ function setupPaperRoutes(app) {
   // GET /api/papers - List papers with filters
   app.get('/api/papers', (req, res) => {
     const { category, status, q, sort = 'priority' } = req.query;
-    let query = 'SELECT * FROM papers WHERE 1=1';
+    let query = 'SELECT p.*, cp.file_path as cached_file_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE 1=1';
     const params = [];
 
     if (category) { query += ' AND category = ?'; params.push(category); }
@@ -202,6 +202,19 @@ IMPORTANT: Do NOT use <think/> tags. Reply directly with JSON only.`;
   app.post('/api/papers/regenerate-all-previews', async (req, res) => {
     const results = await cacheService.regenerateAllPreviews();
     res.json({ count: results.length, results });
+  });
+
+  // GET /api/papers/:id/layout - Get layout analysis data
+  app.get('/api/papers/:id/layout', (req, res) => {
+    const paper = db.queryOne('SELECT layout_data FROM papers WHERE id = ?', [req.params.id]);
+    if (!paper) return res.status(404).json({ error: 'not found' });
+    if (!paper.layout_data) return res.json({ analyzed: false });
+    try {
+      const layout = JSON.parse(paper.layout_data);
+      res.json({ analyzed: true, ...layout });
+    } catch (e) {
+      res.json({ analyzed: false });
+    }
   });
 }
 
