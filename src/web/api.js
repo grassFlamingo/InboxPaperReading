@@ -65,12 +65,16 @@ const api = {
     return fetch(`${API}/api/sync-status`).then(r => r.json());
   },
 
-  async getSummaryStatus() {
-    return fetch(`${API}/api/summary-status`).then(r => r.json());
+  async getBgTasksStatus() {
+    return fetch(`${API}/api/bg-tasks-status`).then(r => r.json());
   },
 
-  async stopBgSummary() {
-    return fetch(`${API}/api/summary-bg-stop`, { method: 'POST' });
+  async runBgTask(task) {
+    return fetch(`${API}/api/bg-task-run`, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task })
+    }).then(r => r.json());
   },
 
   async getTechTerms(params = {}) {

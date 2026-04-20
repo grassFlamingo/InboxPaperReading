@@ -33,7 +33,7 @@ function buildGlossary(inputText) {
 
 async function extractTechTermsFromText(text, sourcePaperId) {
   if (!text || text.length < 20) return [];
-  
+
   const systemPrompt = `你是术语提取专家。从以下技术文本中提取专业术语及其中文翻译。
 要求：
 1. 只提取真正的技术术语（如算法名、模型名、技术概念）
@@ -49,9 +49,21 @@ async function extractTechTermsFromText(text, sourcePaperId) {
     const llmResult = cleanThinkTags(await callLlm(systemPrompt, text, 300));
     const jsonMatch = llmResult.match(/\[[\s\S]*\]/);
     if (!jsonMatch) return [];
-    
+
     const terms = JSON.parse(jsonMatch[0]);
-    return Array.isArray(terms) ? terms : [];
+    if (!Array.isArray(terms)) return [];
+
+    const validTerms = [];
+    for (const t of terms) {
+      if (t.term_en && t.term_zh && t.term_en.length > 1 && t.term_zh.length > 0) {
+        validTerms.push({
+          term_en: String(t.term_en).trim(),
+          term_zh: String(t.term_zh).trim(),
+          context: t.context ? String(t.context).trim() : ''
+        });
+      }
+    }
+    return validTerms;
   } catch (e) {
     console.log('[TechTerms] Extraction error:', e.message);
     return [];

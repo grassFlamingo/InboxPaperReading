@@ -418,30 +418,8 @@ const PaperApp = {
     }
   },
 
-  startBgPoll() {
-    const poll = async () => {
-      try {
-        const s = await PaperAPI.getSummaryStatus();
-        const bar = document.getElementById('bgSummaryBar');
-        if (s.running) {
-          bar.style.display = 'block';
-          const pct = s.total > 0 ? Math.round(s.done / s.total * 100) : 0;
-          document.getElementById('bgSummaryProgress').textContent = `${s.done}/${s.total} (${pct}%)`;
-          document.getElementById('bgSummaryCurrent').textContent = s.current || '';
-          document.getElementById('bgSummaryFill').style.width = pct + '%';
-        } else if (bar.style.display !== 'none') {
-          bar.style.display = 'none';
-          if (s.done > 0) this.render();
-        }
-      } catch(e) {}
-    };
-    poll();
-    setInterval(poll, 5000);
-  },
-
-  stopBgSummary() {
-    PaperAPI.stopBgSummary();
-    document.getElementById('bgSummaryBar').style.display = 'none';
+startBgPoll() {
+    // Removed summary status polling - status bar removed
   },
 
   async toggleNotes(id) {
@@ -589,7 +567,7 @@ const PaperApp = {
     try {
       const result = await PaperAPI.redetectLayout();
       alert(`已重置 ${result.updated} 篇论文的布局数据，将由后台重新检测`);
-      await PaperAPI.startBgWorker('layout');
+      await PaperAPI.runBgTask('layout');
       btn.textContent = '✅ 已重置';
       setTimeout(() => { btn.disabled = false; btn.textContent = '重检布局'; }, 2000);
     } catch (e) {

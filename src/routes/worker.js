@@ -1,3 +1,9 @@
+/**
+ * DEPRECATED: This file is deprecated and will be removed in a future version.
+ * Please use src/services/backgroundWorker.js instead.
+ */
+console.warn('[DEPRECATED] routes/worker.js is deprecated. Use backgroundWorker.js instead.');
+
 const db = require('../db/database');
 const { callLlm, cleanThinkTags } = require('../services/llm');
 const config = require('../../config');
@@ -22,7 +28,7 @@ const WORKER_TASKS = {
     name: 'fetch',
     label: 'Metadata',
     getQuery: () => db.queryAll(`
-      SELECT * FROM papers WHERE arxiv_id IS NOT NULL AND arxiv_id != '' 
+      SELECT * FROM papers WHERE arxiv_id IS NOT NULL AND arxiv_id != ''
       AND (abstract IS NULL OR abstract = '' OR title LIKE 'arXiv:%' OR title LIKE 'arXiv Query:%')
       ORDER BY id DESC
     `),
@@ -46,7 +52,7 @@ const WORKER_TASKS = {
       SELECT * FROM papers WHERE source_type IN (${WEB_CONTENT_TYPES.map(() => '?').join(',')})
       AND (markdown_content IS NULL OR markdown_content = '' OR LENGTH(markdown_content) < 100)
       ORDER BY id DESC
-    `),
+    `, WEB_CONTENT_TYPES),
     process: async (p) => {
       return await processMarkdownConversion(p);
     }
@@ -56,8 +62,8 @@ const WORKER_TASKS = {
     name: 'summarize',
     label: 'AI Summary',
     getQuery: () => db.queryAll(`
-      SELECT * FROM papers WHERE abstract IS NOT NULL AND abstract != '' 
-      AND ((summary IS NULL OR summary = '') OR (ai_category IS NULL OR ai_category = '') OR stars = 0) 
+      SELECT * FROM papers WHERE abstract IS NOT NULL AND abstract != ''
+      AND ((summary IS NULL OR summary = '') OR (ai_category IS NULL OR ai_category = '') OR stars = 0)
       ORDER BY priority DESC, id DESC
     `),
     prepare: () => {
@@ -87,7 +93,7 @@ const WORKER_TASKS = {
         const classifyContent = `Title: ${p.title}\n` + (p.authors ? `Authors: ${p.authors}\n` : '') + `Abstract: ${p.abstract.substring(0, 800)}`;
         const classResult = cleanThinkTags(await callLlm(classifyPrompt, classifyContent));
         const jsonMatch = classResult.match(/\{[^}]+\}/);
-        
+
         if (jsonMatch) {
           const data = JSON.parse(jsonMatch[0]);
           let cat = data.category || '其他';
@@ -149,6 +155,8 @@ const WORKER_TASKS = {
 };
 
 function runBgWorker(taskKey) {
+  console.warn('[DEPRECATED] runBgWorker() is deprecated.');
+
   const task = WORKER_TASKS[taskKey];
   if (!task) return;
   console.log(`[BG] runBgWorker called for: ${taskKey}`);
@@ -159,7 +167,7 @@ function runBgWorker(taskKey) {
       console.log(`[BG-${task.label}] Already running, skipping`);
       return;
     }
-    
+
     state.running = true;
     state.current = taskKey;
     state.done = 0;
@@ -198,6 +206,8 @@ function runBgWorker(taskKey) {
 }
 
 function setupBgWorkerRoutes(app) {
+  console.warn('[DEPRECATED] setupBgWorkerRoutes() is deprecated.');
+
   app.get('/api/bg-status', (req, res) => {
     const { current } = bgState;
     let label = 'idle';
@@ -207,7 +217,7 @@ function setupBgWorkerRoutes(app) {
     else if (current === 'layout') label = 'Doc Layout';
     else if (current === 'summarize') label = 'AI Summary';
     else if (current && current.includes(':')) label = current;
-    
+
     res.json({
       running: bgState.running,
       task: current || 'idle',
@@ -233,7 +243,7 @@ function setupBgWorkerRoutes(app) {
     const { task } = req.body || {};
     if (bgState.running) return res.json({ status: 'already_running', current: bgState.current });
     if (!WORKER_TASKS[task]) return res.json({ status: 'invalid_task' });
-    
+
     runBgWorker(task);
     res.json({ status: 'started', task });
   });
@@ -244,8 +254,9 @@ function setupBgWorkerRoutes(app) {
   });
 }
 
-module.exports = { 
-  setupBgWorkerRoutes, 
+module.exports = {
+  // DEPRECATED
+  setupBgWorkerRoutes,
   startBgSummary: () => runBgWorker('summarize'),
   startBgFetch: () => runBgWorker('fetch'),
   startBgMarkdown: () => runBgWorker('markdown'),

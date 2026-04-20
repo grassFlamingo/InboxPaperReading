@@ -79,8 +79,10 @@ async function initTables() {
   saveDb();
 }
 
-function migrate() {
-  const cols = db.exec('PRAGMA table_info(papers)')[0].values.map(c => c[1]);
+async function migrate() {
+  if (!db) await getDb();
+
+  const papersCols = db.exec('PRAGMA table_info(papers)')[0].values.map(c => c[1]);
   const migrations = [
     { col: 'summary', def: "TEXT DEFAULT ''" },
     { col: 'ai_category', def: "TEXT DEFAULT ''" },
@@ -91,14 +93,25 @@ function migrate() {
     { col: 'markdown_content', def: "TEXT DEFAULT ''" },
   ];
   for (const { col, def } of migrations) {
-    if (!cols.includes(col)) {
+    if (!papersCols.includes(col)) {
       db.run(`ALTER TABLE papers ADD COLUMN ${col} ${def}`);
     }
   }
 
-  const tableExists = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='tech_terms'");
+  const termCols = db.exec('PRAGMA table_info(tech_terms)')[0].values.map(c => c[1]);
+  if (!termCols.includes('category')) {
+    db.run(`ALTER TABLE tech_terms ADD COLUMN category TEXT DEFAULT ''`);
+  }
+
+  saveDb();
+}
+
+async function initMoreTables() {
+  const conn = await getDb();
+
+  const tableExists = conn.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='tech_terms'");
   if (tableExists.length === 0 || tableExists[0].values.length === 0) {
-    db.run(`
+    conn.run(`
       CREATE TABLE IF NOT EXISTS tech_terms (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         term_en TEXT NOT NULL,
@@ -109,15 +122,16 @@ function migrate() {
         source_paper_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        category TEXT DEFAULT '',
         FOREIGN KEY (source_paper_id) REFERENCES papers(id)
       )
     `);
-    db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tech_terms_unique ON tech_terms(term_en, term_zh, context)`);
+    conn.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tech_terms_unique ON tech_terms(term_en, term_zh, context)`);
   }
 
-  const cacheTableExists = db.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='cached_papers'");
+  const cacheTableExists = conn.exec("SELECT name FROM sqlite_master WHERE type='table' AND name='cached_papers'");
   if (cacheTableExists.length === 0 || cacheTableExists[0].values.length === 0) {
-    db.run(`
+    conn.run(`
       CREATE TABLE IF NOT EXISTS cached_papers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         paper_id INTEGER NOT NULL,
@@ -128,18 +142,18 @@ function migrate() {
         FOREIGN KEY (paper_id) REFERENCES papers(id)
       )
     `);
-    db.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cached_papers_paper_id ON cached_papers(paper_id)`);
+    conn.run(`CREATE UNIQUE INDEX IF NOT EXISTS idx_cached_papers_paper_id ON cached_papers(paper_id)`);
   }
 
-  const paperCols = db.exec('PRAGMA table_info(papers)')[0].values.map(c => c[1]);
+  const paperCols = conn.exec('PRAGMA table_info(papers)')[0].values.map(c => c[1]);
   if (!paperCols.includes('preview_image')) {
-    db.run(`ALTER TABLE papers ADD COLUMN preview_image TEXT`);
+    conn.run(`ALTER TABLE papers ADD COLUMN preview_image TEXT`);
   }
   if (!paperCols.includes('title_location')) {
-    db.run(`ALTER TABLE papers ADD COLUMN title_location TEXT`);
+    conn.run(`ALTER TABLE papers ADD COLUMN title_location TEXT`);
   }
   if (!paperCols.includes('layout_data')) {
-    db.run(`ALTER TABLE papers ADD COLUMN layout_data TEXT`);
+    conn.run(`ALTER TABLE papers ADD COLUMN layout_data TEXT`);
   }
 
   saveDb();
@@ -169,4 +183,4 @@ function seedData(conn) {
   stmt.free();
 }
 
-module.exports = { getDb, saveDb, queryAll, queryOne, runQuery, lastInsertRowid, initTables, migrate };
+module.exports = { getDb, saveDb, queryAll, queryOne, runQuery, lastInsertRowid, initTables, migrate, initMoreTables };

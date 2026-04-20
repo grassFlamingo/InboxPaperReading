@@ -273,6 +273,7 @@ class LayoutAnalysisService {
 }
 
 const layoutService = new LayoutAnalysisService(config.LAYOUT_ANALYSIS);
+const { BackgroundService } = require('./backgroundService');
 
 async function runLayoutAnalysisForPaper(paperId) {
   try {
@@ -313,6 +314,46 @@ function getLayoutService() {
   return layoutService;
 }
 
+class LayoutAnalysisBackgroundService extends BackgroundService {
+  constructor(options = {}) {
+    super('layout', {
+      label: 'Doc Layout',
+      enabled: options.enabled !== false,
+      intervalMs: options.intervalMs || 60000,
+      initialDelayMs: options.initialDelayMs || config.BG_WORKER?.DELAY_MS + 7000,
+    });
+  }
+
+  async execute() {
+    const papers = db.queryAll(`
+      SELECT p.id, p.title, p.layout_data, cp.file_path
+      FROM papers p
+      JOIN cached_papers cp ON p.id = cp.paper_id
+      WHERE cp.file_path IS NOT NULL AND cp.file_path != ''
+      AND (p.layout_data IS NULL OR p.layout_data = '' OR p.layout_data = 'null')
+      ORDER BY p.id DESC
+      LIMIT 20
+    `);
+
+    console.log(`[${this.label}] Found ${papers.length} papers needing analysis`);
+
+    for (const paper of papers) {
+      try {
+        const result = await runLayoutAnalysisForPaper(paper.id);
+        if (result.success) this.status.processed++;
+        else this.status.errors++;
+      } catch (e) {
+        this.status.errors++;
+        console.error(`[${this.label}] Error #${paper.id}:`, e.message);
+      }
+      await this.yieldIfNeeded();
+      await this._setTimeout(500);
+    }
+
+    console.log(`[${this.label}] Done: ${this.status.processed} analyzed, ${this.status.errors} errors`);
+  }
+}
+
 module.exports = {
   LayoutAnalysisService,
   layoutService,
@@ -320,4 +361,5 @@ module.exports = {
   getPapersNeedingLayoutAnalysis,
   analyzeAllPending,
   getLayoutService,
+  LayoutAnalysisBackgroundService,
 };

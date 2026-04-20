@@ -499,6 +499,131 @@ function getSyncStatus() {
   return EmailSyncService.getStatus();
 }
 
+class EmailSyncBackgroundService {
+  constructor(options = {}) {
+    this.name = 'emailSync';
+    this.label = 'Email Sync';
+    this.enabled = options.enabled !== false;
+    this.intervalMs = 0;
+    this.isRunning = false;
+    this.lastRun = null;
+    this.lastError = null;
+    this.emailService = null;
+    this.timer = null;
+    this.isScheduled = false;
+    this.syncStatus = {
+      running: false,
+      lastRun: null,
+      emailsProcessed: 0,
+      papersImported: 0,
+      errors: [],
+    };
+  }
+
+  start() {
+    if (!this.enabled) {
+      console.log(`[${this.label}] Disabled in config`);
+      return;
+    }
+
+    this.emailService = new EmailSyncService();
+    console.log(`[${this.label}] Service initialized`);
+
+    this._scheduleNextSync();
+    this._startChecker();
+  }
+
+  _startChecker() {
+    setInterval(() => {
+      if (!this.syncStatus.running) {
+        this._scheduleNextSync();
+      }
+    }, 60000);
+  }
+
+  _scheduleNextSync() {
+    if (this.isScheduled) return;
+
+    const now = new Date();
+    const targetHour = EMAIL_CONFIG.CRON_HOUR;
+    const targetMinute = EMAIL_CONFIG.CRON_MINUTE;
+
+    let nextRun = new Date(now);
+    nextRun.setHours(targetHour, targetMinute, 0, 0);
+
+    if (nextRun <= now) {
+      nextRun.setDate(nextRun.getDate() + 1);
+    }
+
+    const delay = nextRun.getTime() - now.getTime();
+    console.log(`[${this.label}] Next run scheduled: ${nextRun.toLocaleString()}`);
+
+    this.timer = setTimeout(async () => {
+      this.isScheduled = false;
+      if (this.emailService) {
+        await this.emailService.sync();
+        this.syncStatus = { ...this.emailService.syncStatus };
+      }
+      this._scheduleNextSync();
+    }, delay);
+
+    this.isScheduled = true;
+  }
+
+  async run() {
+    if (this.isRunning) {
+      console.log(`[${this.label}] Already running, skipping`);
+      return;
+    }
+
+    this.isRunning = true;
+    this.syncStatus.running = true;
+
+    try {
+      if (this.emailService) {
+        await this.emailService.sync();
+        this.syncStatus = { ...this.emailService.syncStatus };
+      }
+      this.lastRun = new Date().toISOString();
+    } catch (e) {
+      this.lastError = e.message;
+      this.syncStatus.errors.push(e.message);
+      console.error(`[${this.label}] Error:`, e.message);
+    } finally {
+      this.isRunning = false;
+      this.syncStatus.running = false;
+    }
+  }
+
+  stop() {
+    if (this.timer) {
+      clearTimeout(this.timer);
+      this.timer = null;
+    }
+    this.isScheduled = false;
+  }
+
+  triggerManualSync() {
+    if (this.emailService && !this.syncStatus.running) {
+      this.emailService.sync();
+    }
+  }
+
+  getStatus() {
+    return {
+      name: this.name,
+      label: this.label,
+      enabled: this.enabled,
+      running: this.isRunning || this.syncStatus.running,
+      lastRun: this.lastRun,
+      lastError: this.lastError,
+      processed: this.syncStatus.emailsProcessed,
+      papersImported: this.syncStatus.papersImported,
+      errors: this.syncStatus.errors.length,
+    };
+  }
+}
+
 module.exports = {
   startEmailSync,
   triggerManualSync,
@@ -506,4 +631,5 @@ module.exports = {
   EmailParser,
   PaperMetadataFetcher,
   EmailSyncService,
+  EmailSyncBackgroundService,
 };

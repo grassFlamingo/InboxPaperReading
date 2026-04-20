@@ -12,32 +12,33 @@ const { execSync } = require('child_process');
 const config = require('./config');
 const db = require('./src/db/database');
 
-process.on('unhandledRejection', (err) => {
-  console.error('[Unhandled Rejection]:', err.message);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('[Uncaught Exception]:', err.message);
-});
+process.on('unhandledRejection', (err) => console.error('[Unhandled Rejection]:', err.message));
+process.on('uncaughtException', (err) => console.error('[Uncaught Exception]:', err.message));
 
 const app = express();
-
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
 
-// Routes
+// Routes setup
 const setupPaperRoutes = require('./src/routes/papers');
 const setupSummaryRoutes = require('./src/routes/summary');
-const { setupBgWorkerRoutes, startBgSummary, startBgFetch, startBgMarkdown, startBgCache, startBgLayout } = require('./src/routes/worker');
 const { setupTechTermsRoutes } = require('./src/routes/techterms');
-const { startEmailSync } = require('./src/services/email');
 
 setupPaperRoutes(app);
 setupSummaryRoutes(app);
-setupBgWorkerRoutes(app);
 setupTechTermsRoutes(app);
+
+// Background task manager endpoints
+const bgManager = require('./src/services/backgroundManager');
+
+app.get('/api/bg-tasks-status', (req, res) => res.json(bgManager.getBgTaskStatus()));
+app.post('/api/bg-task-run', async (req, res) => {
+  const { task } = req.body;
+  if (!task) return res.status(400).json({ error: 'task required' });
+  const result = await bgManager.runBgTask(task);
+  res.json(result);
+});
 
 // Static files
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
@@ -48,48 +49,18 @@ const PORT = config.PORT;
 (async () => {
   try {
     await db.initTables();
-    db.migrate();
+    await db.initMoreTables();
+    await db.migrate();
+
     console.log('[OK] Paper reading list server started');
     console.log(`   Local:  http://localhost:${PORT}`);
 
     let lanIp = 'unknown';
-    try {
-      lanIp = execSync('hostname -I | awk \'{print $1}\'', { timeout: 5000, encoding: 'utf8' }).trim();
-    } catch (e) {}
+    try { lanIp = execSync('hostname -I | awk \'{print $1}\'', { timeout: 5000, encoding: 'utf8' }).trim(); } catch (e) {}
     if (lanIp && lanIp !== 'unknown') console.log(`   LAN:    http://${lanIp}:${PORT}`);
 
-    setTimeout(() => {
-      startBgFetch();
-      console.log('[BG-Fetch] Auto-fetch metadata will start in 5 seconds...');
-    }, config.BG_WORKER.DELAY_MS);
-
-    setTimeout(() => {
-      startBgMarkdown();
-      console.log('[BG-MD] Auto-markdown conversion will start in 7 seconds...');
-    }, config.BG_WORKER.DELAY_MS + 2000);
-
-    setTimeout(() => {
-      startBgCache();
-      console.log('[BG-Cache] Auto-PDF cache will start in 9 seconds...');
-    }, config.BG_WORKER.DELAY_MS + 5000);
-
-    setTimeout(() => {
-      startBgLayout();
-      console.log('[BG-Layout] Auto-layout analysis will start in 10 seconds...');
-    }, config.BG_WORKER.DELAY_MS + 7000);
-
-    setTimeout(() => {
-      startBgSummary();
-      console.log('[BG-AI] Auto-summary will start in 12 seconds...');
-    }, config.BG_WORKER.DELAY_MS + 10000);
-
-    setInterval(() => {
-      console.log('[BG] Periodic check: layout');
-      startBgLayout();
-    }, 60000);
-
-    // Start scheduled email sync
-    startEmailSync();
+    setTimeout(() => bgManager.startBackgroundTasks(), config.BG_WORKER?.DELAY_MS || 1000);
+    console.log('[BG] Background worker tasks scheduled');
 
     app.listen(PORT, config.HOST, () => console.log(`Server running on port ${PORT}`));
   } catch (e) {

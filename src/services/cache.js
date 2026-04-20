@@ -1,9 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const { exec, execSync } = require('child_process');
+const { execSync } = require('child_process');
 const fetch = require('node-fetch');
 const db = require('../db/database');
 const config = require('../../config');
+const { BackgroundService } = require('./backgroundService');
 
 const CACHE_DIR = path.join(__dirname, '../../cache/papers');
 
@@ -167,6 +168,85 @@ async function regenerateAllPreviews() {
   return results;
 }
 
+class CacheBackgroundService extends BackgroundService {
+  constructor(options = {}) {
+    super('cache', {
+      label: 'Cache PDF',
+      enabled: options.enabled !== false,
+      intervalMs: options.intervalMs || 0,
+      initialDelayMs: options.initialDelayMs || config.BG_WORKER?.DELAY_MS + 5000,
+    });
+    this.limit = options.limit || 20;
+    this.batchDelayMs = options.batchDelayMs || config.BG_WORKER?.AUTO_CACHE_DELAY_MS || 30000;
+    this.maxBatches = options.maxBatches || config.BG_WORKER?.AUTO_CACHE_MAX_BATCHES || 10;
+    this.processDelayMs = options.processDelayMs || 1000;
+  }
+
+  _getPapersToCache(limit) {
+    return db.queryAll(`
+      SELECT p.*, cp.id as cached_id, cp.file_path as cached_path
+      FROM papers p
+      LEFT JOIN cached_papers cp ON p.id = cp.paper_id
+      WHERE p.arxiv_id IS NOT NULL AND p.arxiv_id != ''
+      ORDER BY cp.id ASC NULLS FIRST, p.priority DESC, p.id DESC
+      LIMIT ?
+    `, [limit]);
+  }
+
+  async execute() {
+    if (!config.BG_WORKER?.AUTO_CACHE_FOR_ALL_PAPERS) {
+      const papers = this._getPapersToCache(this.limit);
+      console.log(`[${this.label}] Found ${papers.length} papers to cache`);
+
+      for (const paper of papers) {
+        try {
+          const result = await downloadPaper(paper);
+          if (result.success) this.status.processed++;
+          else this.status.errors++;
+        } catch (e) {
+          this.status.errors++;
+          console.error(`[${this.label}] Error #${paper.id}:`, e.message);
+        }
+        await this.yieldIfNeeded();
+        await new Promise(r => setTimeout(r, this.processDelayMs)).catch(() => {});
+      }
+    } else {
+      console.log(`[${this.label}] Auto-cache mode: fetching up to ${this.maxBatches} batches with ${this.batchDelayMs}ms delay`);
+
+      for (let batch = 0; batch < this.maxBatches; batch++) {
+        const papers = this._getPapersToCache(this.limit);
+        if (papers.length === 0) {
+          console.log(`[${this.label}] No more papers to cache`);
+          break;
+        }
+
+        console.log(`[${this.label}] Batch ${batch + 1}/${this.maxBatches}: ${papers.length} papers`);
+
+        for (const paper of papers) {
+          try {
+            const result = await downloadPaper(paper);
+            if (result.success) this.status.processed++;
+            else this.status.errors++;
+          } catch (e) {
+            this.status.errors++;
+            console.error(`[${this.label}] Error #${paper.id}:`, e.message);
+          }
+          await this.yieldIfNeeded();
+          await new Promise(r => setTimeout(r, this.processDelayMs)).catch(() => {});
+        }
+
+        if (batch < this.maxBatches - 1) {
+          console.log(`[${this.label}] Waiting ${this.batchDelayMs}ms before next batch...`);
+          await this._yield();
+          await new Promise(r => setTimeout(r, this.batchDelayMs)).catch(() => {});
+        }
+      }
+    }
+
+    console.log(`[${this.label}] Done: ${this.status.processed} cached, ${this.status.errors} errors`);
+  }
+}
+
 module.exports = {
   getCachedPaper,
   getAllCachedPapers,
@@ -174,5 +254,6 @@ module.exports = {
   deleteCachedPaper,
   regeneratePreview,
   regenerateAllPreviews,
-  CACHE_DIR
+  CACHE_DIR,
+  CacheBackgroundService,
 };

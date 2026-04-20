@@ -4,6 +4,7 @@ const { fetchUrlText, detectSourceType } = require('../services/web');
 const { callLlm, cleanThinkTags } = require('../services/llm');
 const config = require('../../config');
 const emailSync = require('../services/email');
+const { startEmailSync, getSyncStatus } = require('../services/email');
 const { buildGlossary } = require('./techterms');
 const cacheService = require('../services/cache');
 
@@ -183,18 +184,18 @@ IMPORTANT: Do NOT use <think/> tags. Reply directly with JSON only.`;
     res.status(201).json({ id: lastId, title: extracted.title, authors: extracted.authors, source_type: sourceType, category: finalCategory, stars: starsAi, abstract_preview: abstract.length > 100 ? abstract.substring(0, 100) + '...' : abstract, message: 'imported' });
   });
 
-  // POST /api/sync - Trigger email sync (runs in background)
-  app.post('/api/sync', (req, res) => {
-    if (emailSync.getSyncStatus().running) {
-      return res.json({ status: 'already_running' });
-    }
-    emailSync.triggerManualSync();
-    res.json({ status: 'started' });
+  // GET /api/sync-status - Get email sync status
+  app.get('/api/sync-status', (req, res) => {
+    const bgManager = require('../services/backgroundManager');
+    const status = bgManager.getBgTaskStatus();
+    res.json(status.emailSync || { running: false, lastRun: null, error: null });
   });
 
-  // GET /api/sync-status
-  app.get('/api/sync-status', (req, res) => {
-    res.json(emailSync.getSyncStatus());
+  // POST /api/sync - Trigger email sync (runs in background)
+  app.post('/api/sync', async (req, res) => {
+    const bgManager = require('../services/backgroundManager');
+    const result = await bgManager.runBgTask('emailSync');
+    res.json({ status: result.success ? 'started' : 'failed' });
   });
 
   // POST /api/papers/:id/cache - Cache paper PDF

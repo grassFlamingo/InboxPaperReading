@@ -20,28 +20,12 @@
       <div style="margin-left: auto;"></div>
       <div class="header-actions">
         <button class="btn" onclick="PaperApp.redetectLayout()" style="border-color:var(--accent);color:var(--accent)">重检布局</button>
-        <button class="btn" onclick="TechTermsApp.show()" style="border-color:#a78bfa;color:#a78bfa">术语</button>
+        <button class="btn" onclick="TechTermsApp.show()" style="border-color:#a78bfa;color:#a78bfa">术语表</button>
         <button class="btn" id="syncBtn" onclick="PaperApp.syncEmails()"
-          style="border-color:var(--green);color:var(--green)">同步</button>
+          style="border-color:var(--green);color:var(--green)">邮箱同步</button>
         <button class="btn" id="importUrlBtn" onclick="PaperApp.openImportUrlModal()"
-          style="border-color:#1da1f2;color:#1da1f2">导入</button>
+          style="border-color:#1da1f2;color:#1da1f2">URL导入</button>
         <button class="btn btn-primary" onclick="PaperApp.openAddModal()">＋ 添加</button>
-      </div>
-    </div>
-
-    <div id="bgSummaryBar"
-      style="display:none;margin:8px 0;padding:10px 14px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);border-radius:8px;font-size:.85rem">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-        <span>AI 处理中（摘要+分类+打星）...</span>
-        <span id="bgSummaryProgress" style="color:var(--green);font-weight:600">0/0</span>
-        <span id="bgSummaryCurrent"
-          style="color:var(--muted);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1"></span>
-        <button onclick="PaperApp.stopBgSummary()"
-          style="background:none;border:1px solid var(--red);color:var(--red);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:.8rem">停止</button>
-      </div>
-      <div style="background:var(--border);border-radius:4px;height:4px;overflow:hidden">
-        <div id="bgSummaryFill"
-          style="height:100%;background:var(--green);border-radius:4px;transition:width .5s;width:0%"></div>
       </div>
     </div>
 
