@@ -1,27 +1,41 @@
 const { fetchUrlText } = require('./web');
-const { callLlm, cleanThinkTags } = require('./llm');
+const TurndownService = require('turndown');
 
 const WEB_CONTENT_TYPES = ['wechat_article', 'blog_post', 'twitter_thread', 'other'];
 
-async function convertHtmlToMarkdown(url, htmlContent) {
-  const systemPrompt = `你是一个HTML转Markdown的转换器。将给定的HTML内容转换为格式良好的Markdown。
-要求：
-1. 保留标题层级结构
-2. 代码块使用\`\`\`标记
-3. 列表保持原有结构
-4. 保留加粗、斜体等格式
-5. 图片使用![]()语法
-6. 链接使用[]()语法
-7. 移除不必要的HTML标签
-8. 保持中文标点符号
-9. 不要使用markdown代码块包裹整个内容
-IMPORTANT: Do NOT use <think/> tags. Reply directly with Markdown only.`;
+const turndownService = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+  strongDelimiter: '**',
+  emDelimiter: '*',
+});
 
+turndownService.addRule('strikethrough', {
+  filter: ['s', 'del', 'strike'],
+  replacement: (content) => `~~${content}~~`,
+});
+
+turndownService.addRule('taskList', {
+  filter: ['li'],
+  replacement: (content) => {
+    const checked = content.includes('[x]') || content.includes('[X]');
+    return `${checked ? '[x]' : '[ ]'} ${content.replace(/\[.?\]/g, '').trim()}\n`;
+  },
+});
+
+async function convertHtmlToMarkdown(url, htmlContent) {
   try {
-    const markdown = await callLlm(systemPrompt, `URL: ${url}\n\nHTML内容：\n${htmlContent}`, 2000);
-    return cleanThinkTags(markdown);
+    let html = htmlContent;
+    html = html.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '');
+    html = html.replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, '');
+    html = html.replace(/<!--[\s\S]*?-->/g, '');
+    html = html.replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
+    html = html.replace(/<footer[\s\S]*?<\/footer>/gi, '');
+    html = html.replace(/<header[\s\S]*?<\/header>/gi, '');
+    return turndownService.turndown(html);
   } catch (e) {
-    console.error('[html2markdown] LLM conversion failed:', e.message);
+    console.error('[html2markdown] Conversion failed:', e.message);
     return null;
   }
 }

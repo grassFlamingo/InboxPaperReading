@@ -10,7 +10,7 @@ const api = {
   },
 
   async getPaper(id) {
-    return fetch(`${API}/api/papers`).then(r => r.json()).then(list => list.find(p => p.id === id));
+    return fetch(`${API}/api/papers/${id}`).then(r => r.json());
   },
 
   async addPaper(data) {

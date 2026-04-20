@@ -140,6 +140,23 @@ const PaperApp = {
     }
   },
 
+  _updatePaperCard(updated) {
+    const idx = this.papers.findIndex(p => p.id === updated.id);
+    if (idx === -1) return;
+    this.papers[idx] = updated;
+    const card = document.querySelector(`.paper[data-id="${updated.id}"]`);
+    if (!card) return;
+    const gridLayout = document.getElementById('layoutMode')?.value === 'grid';
+    const renderIdx = Array.from(card.parentElement.children).indexOf(card) + 1;
+    card.outerHTML = RenderUtils.renderCard(updated, renderIdx, { grid: gridLayout, showNum: true });
+  },
+
+  _removePaperCard(id) {
+    this.papers = this.papers.filter(p => p.id !== id);
+    const card = document.querySelector(`.paper[data-id="${id}"]`);
+    if (card) card.remove();
+  },
+
   resetAndReload() {
     this.paperBatch = { papers: [], total: 0, offset: 0, limit: 50, hasMore: true, loading: false };
     this.render();
@@ -165,16 +182,16 @@ const PaperApp = {
   async markReading(id, e) {
     e.preventDefault();
     const pUrl = e.currentTarget.href;
-    await PaperAPI.updatePaper(id, { status: 'reading' });
+    const updated = await PaperAPI.updatePaper(id, { status: 'reading' });
     window.open(pUrl, '_blank');
-    this.refreshInPlace();
+    this._updatePaperCard(updated);
     this.loadCategories();
   },
 
   async cycleStatus(id, current) {
     const next = RenderUtils.STATUS_NEXT[current] || 'reading';
-    await PaperAPI.updatePaper(id, { status: next });
-    this.refreshInPlace();
+    const updated = await PaperAPI.updatePaper(id, { status: next });
+    this._updatePaperCard(updated);
   },
 
   async refreshInPlace() {
@@ -203,7 +220,7 @@ const PaperApp = {
   async deletePaper(id) {
     if (!confirm('确定删除这篇论文？')) return;
     await PaperAPI.deletePaper(id);
-    this.refreshInPlace();
+    this._removePaperCard(id);
     this.loadCategories();
   },
 

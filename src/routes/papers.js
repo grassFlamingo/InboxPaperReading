@@ -1,4 +1,5 @@
 const db = require('../db/database');
+const path = require('path');
 const { fetchUrlText, detectSourceType } = require('../services/web');
 const { callLlm, cleanThinkTags } = require('../services/llm');
 const config = require('../../config');
@@ -6,11 +7,25 @@ const emailSync = require('../services/email');
 const { buildGlossary } = require('./techterms');
 const cacheService = require('../services/cache');
 
+function getPreviewUrl(cachedPreviewPath) {
+  if (!cachedPreviewPath || cachedPreviewPath.startsWith('data:')) return null;
+  return cachedPreviewPath;
+}
+
 function setupPaperRoutes(app) {
+  // GET /api/papers/:id - Get single paper (must be before /api/papers to avoid "papers" being captured as :id)
+  app.get('/api/papers/:id', (req, res) => {
+    const { id } = req.params;
+    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
+    if (!row) return res.status(404).json({ error: 'not found' });
+    row.cached_preview_path = getPreviewUrl(row.cached_preview_path);
+    res.json(row);
+  });
+
   // GET /api/papers - List papers with filters and pagination
   app.get('/api/papers', (req, res) => {
     const { category, status, q, sort = 'priority', offset = 0, limit = 50, cached } = req.query;
-    let query = 'SELECT p.*, cp.file_path as cached_file_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE 1=1';
+    let query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE 1=1';
     let countQuery = 'SELECT COUNT(*) as total FROM papers WHERE 1=1';
     const params = [];
     const countParams = [];
@@ -38,7 +53,13 @@ function setupPaperRoutes(app) {
 
     query += ` LIMIT ${parsedLimit} OFFSET ${parsedOffset}`;
     const rows = db.queryAll(query, params);
-    res.json({ papers: rows, total, offset: parsedOffset, limit: parsedLimit, hasMore: parsedOffset + rows.length < total });
+
+    const papers = rows.map(row => ({
+      ...row,
+      cached_preview_path: getPreviewUrl(row.cached_preview_path)
+    }));
+
+    res.json({ papers, total, offset: parsedOffset, limit: parsedLimit, hasMore: parsedOffset + rows.length < total });
   });
 
   // POST /api/papers - Add paper
@@ -49,6 +70,15 @@ function setupPaperRoutes(app) {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [d.title || '', d.authors || '', d.abstract || '', d.source || '', d.source_url || '', d.arxiv_id || '', d.category || '其他', d.priority ?? 3, d.status || 'unread', d.tags || '', d.notes || '', d.source_type || 'paper']);
     res.status(201).json({ id: lastId, message: 'added' });
+  });
+
+  // GET /api/papers/:id - Get single paper
+  app.get('/api/papers/:id', (req, res) => {
+    const { id } = req.params;
+    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
+    if (!row) return res.status(404).json({ error: 'not found' });
+    row.cached_preview_path = getPreviewUrl(row.cached_preview_path);
+    res.json(row);
   });
 
   // PUT /api/papers/:id - Update paper
@@ -63,13 +93,16 @@ function setupPaperRoutes(app) {
     sets.push('updated_at = CURRENT_TIMESTAMP');
     vals.push(id);
     db.runQuery(`UPDATE papers SET ${sets.join(', ')} WHERE id = ?`, vals);
-    res.json({ message: 'updated' });
+    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
+    row.cached_preview_path = getPreviewUrl(row.cached_preview_path);
+    res.json(row);
   });
 
   // DELETE /api/papers/:id
   app.delete('/api/papers/:id', (req, res) => {
-    db.runQuery('DELETE FROM papers WHERE id = ?', [req.params.id]);
-    res.json({ message: 'deleted' });
+    const { id } = req.params;
+    db.runQuery('DELETE FROM papers WHERE id = ?', [id]);
+    res.json({ id, message: 'deleted' });
   });
 
   // GET /api/papers/:id/markdown - Get markdown content
@@ -205,12 +238,25 @@ IMPORTANT: Do NOT use <think/> tags. Reply directly with JSON only.`;
 
   // GET /api/papers/:id/preview - Serve preview image
   app.get('/api/papers/:id/preview', (req, res) => {
-    const cached = cacheService.getCachedPaper(parseInt(req.params.id));
-    if (!cached || !cached.preview_image || !fs.existsSync(cached.preview_image)) {
-      return res.status(404).json({ error: 'no preview' });
+    const id = parseInt(req.params.id);
+    const cached = cacheService.getCachedPaper(id);
+    
+    const previewDir = path.join(__dirname, '../../cache/papers/previews');
+    const previewPath = path.join(previewDir, `paper_${id}_page1.png`);
+    
+    if (fs.existsSync(previewPath)) {
+      res.setHeader('Content-Type', 'image/png');
+      return res.sendFile(previewPath);
     }
-    res.setHeader('Content-Type', 'image/png');
-    res.sendFile(cached.preview_image);
+    
+    if (cached && cached.preview_image && cached.preview_image.startsWith('data:')) {
+      const base64 = cached.preview_image.split(',')[1];
+      const imgBuf = Buffer.from(base64, 'base64');
+      res.setHeader('Content-Type', 'image/png');
+      return res.send(imgBuf);
+    }
+    
+    return res.status(404).json({ error: 'no preview' });
   });
 
   // POST /api/papers/:id/regenerate-preview - Regenerate preview for cached PDF

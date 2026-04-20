@@ -21,6 +21,10 @@ let syncStatus = {
 class PaperMetadataFetcher {
   static async fetch(arxivId, retries = 3) {
     if (!arxivId) return null;
+
+    // Try arXiv API last (often rate limited)
+    const arxivResult = await this.fetchFromArxivApi(arxivId, retries);
+    if (arxivResult) return arxivResult;
     
     // Try Semantic Scholar first (more reliable)
     const ssResult = await this.fetchFromSemanticScholar(arxivId, retries);
@@ -30,9 +34,6 @@ class PaperMetadataFetcher {
     const openalexResult = await this.fetchFromOpenAlex(arxivId, retries);
     if (openalexResult) return openalexResult;
 
-    // Try arXiv API last (often rate limited)
-    const arxivResult = await this.fetchFromArxivApi(arxivId, retries);
-    if (arxivResult) return arxivResult;
     
     return null;
   }

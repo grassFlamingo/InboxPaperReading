@@ -46,9 +46,9 @@ async function downloadPaper(paper) {
 
   try {
     const res = await fetch(pdfUrl, {
-      timeout: 5 * 60 * 1000, // 5 min
+      timeout: config.CACHE?.DOWNLOAD_TIMEOUT_MS || (5 * 60 * 1000),
       headers: {
-        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36'
+        'user-agent': config.CACHE?.USER_AGENT || 'Mozilla/5.0'
       }
     });
     if (!res.ok) {
@@ -67,38 +67,21 @@ async function downloadPaper(paper) {
       fs.writeFileSync(previewPath, previewImage);
     }
 
-    const pageInfo = await extractTitleLocation(filePath);
-
     db.runQuery(`
       INSERT INTO cached_papers (paper_id, file_path, file_size, preview_image)
       VALUES (?, ?, ?, ?)
     `, [paper.id, filePath, buffer.length, previewPath]);
 
-    if (previewPath || pageInfo) {
-      const previewUrl = previewPath ? `/api/papers/${paper.id}/preview` : null;
+    if (previewPath) {
+      const previewUrl = `/api/papers/${paper.id}/preview`;
       db.runQuery('UPDATE cached_papers SET preview_image = ? WHERE paper_id = ?', [previewPath, paper.id]);
-      db.runQuery('UPDATE papers SET preview_image = ?, title_location = ? WHERE id = ?', 
-        [previewUrl, pageInfo ? JSON.stringify(pageInfo) : null, paper.id]);
+      db.runQuery('UPDATE papers SET preview_image = ? WHERE id = ?', [previewUrl, paper.id]);
     }
 
-    return { success: true, msg: 'cached', file_path: filePath, preview: !!previewPath, title_location: pageInfo };
+    return { success: true, msg: 'cached', file_path: filePath, preview: !!previewPath };
   } catch (e) {
     console.error('[Cache] Download failed:', e.message);
     return { success: false, msg: e.message };
-  }
-}
-
-async function extractTitleLocation(pdfPath) {
-  try {
-    const scriptPath = path.join(__dirname, '../../scripts/extract_title.py');
-    const result = execSync(`python3 "${scriptPath}" "${pdfPath}"`, { timeout: 30000, encoding: 'utf8' });
-
-    const info = JSON.parse(result.trim());
-    console.log(`[Cache] Title: line ${info.title_location?.line}: ${info.title_location?.text?.substring(0, 50)}`);
-    return info.title_location;
-  } catch (e) {
-    console.log('[Cache] Title extraction failed:', e.message);
-    return null;
   }
 }
 
@@ -112,7 +95,7 @@ async function extractPreview(pdfPath) {
     const baseName = path.basename(pdfPath, '.pdf');
     const outputPrefix = path.join(previewDir, baseName);
 
-    execSync(`pdftoppm -png -singlefile -f 1 -l 1 "${pdfPath}" "${outputPrefix}"`, { timeout: 30000 });
+    execSync(`pdftoppm -png -singlefile -f 1 -l 1 "${pdfPath}" "${outputPrefix}"`, { timeout: config.CACHE?.PREVIEW_TIMEOUT_MS || 30000 });
 
     const pngFile = `${outputPrefix}.png`;
     if (fs.existsSync(pngFile)) {
@@ -161,14 +144,11 @@ async function regeneratePreview(paperId) {
       fs.writeFileSync(previewPath, previewImage);
     }
 
-    const pageInfo = await extractTitleLocation(cached.file_path);
-
     const previewUrl = previewPath ? `/api/papers/${paperId}/preview` : null;
     db.runQuery('UPDATE cached_papers SET preview_image = ? WHERE paper_id = ?', [previewPath, paperId]);
-    db.runQuery('UPDATE papers SET preview_image = ?, title_location = ? WHERE id = ?', 
-      [previewUrl, pageInfo ? JSON.stringify(pageInfo) : null, paperId]);
+    db.runQuery('UPDATE papers SET preview_image = ? WHERE id = ?', [previewUrl, paperId]);
 
-    return { success: true, preview: !!previewPath, title_location: pageInfo };
+    return { success: true, preview: !!previewPath };
   } catch (e) {
     console.error('[Cache] Regenerate failed:', e.message);
     return { success: false, msg: e.message };

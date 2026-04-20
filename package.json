@@ -26,7 +26,8 @@
     "onnxruntime-node": "^1.24.3",
     "pdf-to-png-converter": "^3.18.0",
     "sharp": "^0.34.5",
-    "sql.js": "^1.10.3"
+    "sql.js": "^1.10.3",
+    "turndown": "^7.2.4"
   },
   "devDependencies": {
     "jest": "^30.3.0"

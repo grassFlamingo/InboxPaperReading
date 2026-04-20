@@ -699,35 +699,15 @@ a.paper-preview {
   left: var(--tx, 0);
   top: var(--ty, 0);
   width: 600px;
-  height: 850px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: top center;
   z-index: 1000;
   pointer-events: none;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
-  padding-top: 380px;
-  overflow: hidden;
 }
 
-.paper-tooltip::before {
-  content: attr(data-title);
-  display: block;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 16px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-  color: var(--text);
-  font-size: 1.1rem;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  white-space: nowrap;
+.paper-tooltip img {
+  width: 100%;
+  height: fit-content;
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
 .paper:has(.paper-title[data-preview]:hover) .paper-tooltip,
