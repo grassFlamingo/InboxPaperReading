@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS cached_papers (
   preview_image TEXT,
   title_location TEXT,
   layout_data TEXT,
+  status TEXT DEFAULT 'pending',
+  error_message TEXT,
   cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (paper_id) REFERENCES papers(id)
 );

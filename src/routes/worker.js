@@ -7,7 +7,7 @@ console.warn('[DEPRECATED] routes/worker.js is deprecated. Use backgroundWorker.
 const db = require('../db/database');
 const { callLlm, cleanThinkTags } = require('../services/llm');
 const config = require('../../config');
-const { PaperMetadataFetcher } = require('../services/email');
+const { PaperMetadataFetcher } = require('../services/metadataFetch');
 const { extractTechTermsFromText, upsertTechTerm } = require('./techterms');
 const { processMarkdownConversion, WEB_CONTENT_TYPES } = require('../services/markdown');
 const cacheService = require('../services/cache');

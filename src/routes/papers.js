@@ -26,26 +26,25 @@ function setupPaperRoutes(app) {
   // GET /api/papers - List papers with filters and pagination
   app.get('/api/papers', (req, res) => {
     const { category, status, q, sort = 'priority', offset = 0, limit = 50, cached } = req.query;
-    let query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE 1=1';
-    let countQuery = 'SELECT COUNT(*) as total FROM papers WHERE 1=1';
-    const params = [];
-    const countParams = [];
+    let query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.status != ?';
+    let countQuery = 'SELECT COUNT(*) as total FROM papers p WHERE p.status != ?';
+    const params = ['done'];
+    const countParams = ['done'];
 
-    if (category) { query += ' AND category = ?'; countQuery += ' AND category = ?'; params.push(category); countParams.push(category); }
-    if (status) { query += ' AND status = ?'; countQuery += ' AND status = ?'; params.push(status); countParams.push(status); }
-    else { query += ' AND status != ?'; countQuery += ' AND status != ?'; params.push('done'); countParams.push('done'); }
-    if (q) { query += ' AND (title LIKE ? OR authors LIKE ? OR abstract LIKE ? OR tags LIKE ?)'; countQuery += ' AND (title LIKE ? OR authors LIKE ? OR abstract LIKE ? OR tags LIKE ?)'; const qparam = `%${q}%`; params.push(qparam, qparam, qparam, qparam); countParams.push(qparam, qparam, qparam, qparam); }
-    if (cached === 'cached') { query += ' AND cp.paper_id IS NOT NULL'; countQuery += ' AND id IN (SELECT paper_id FROM cached_papers)'; }
-    else if (cached === 'uncached') { query += ' AND cp.paper_id IS NULL'; countQuery += ' AND id NOT IN (SELECT paper_id FROM cached_papers)'; }
+    if (category) { query += ' AND p.category = ?'; countQuery += ' AND p.category = ?'; params.push(category); countParams.push(category); }
+    if (status) { query += ' AND p.status = ?'; countQuery += ' AND p.status = ?'; params.push(status); countParams.push(status); }
+    if (q) { query += ' AND (p.title LIKE ? OR p.authors LIKE ? OR p.abstract LIKE ? OR p.tags LIKE ?)'; countQuery += ' AND (p.title LIKE ? OR p.authors LIKE ? OR p.abstract LIKE ? OR p.tags LIKE ?)'; const qparam = `%${q}%`; params.push(qparam, qparam, qparam, qparam); countParams.push(qparam, qparam, qparam, qparam); }
+    if (cached === 'cached') { query += ' AND cp.paper_id IS NOT NULL'; countQuery += ' AND p.id IN (SELECT paper_id FROM cached_papers)'; }
+    else if (cached === 'uncached') { query += ' AND cp.paper_id IS NULL'; countQuery += ' AND p.id NOT IN (SELECT paper_id FROM cached_papers)'; }
 
-    if (sort === 'date') query += ' ORDER BY created_at DESC';
-    else if (sort === 'date_asc') query += ' ORDER BY created_at ASC';
-    else if (sort === 'title') query += ' ORDER BY title ASC';
-    else if (sort === 'title_asc') query += ' ORDER BY title DESC';
-    else if (sort === 'stars') query += ' ORDER BY stars DESC, id ASC';
-    else if (sort === 'stars_asc') query += ' ORDER BY stars ASC, id ASC';
-    else if (sort === 'priority_asc') query += ' ORDER BY priority ASC, id ASC';
-    else query += ' ORDER BY CASE status WHEN "reading" THEN 0 WHEN "unread" THEN 1 ELSE 2 END, priority DESC, id ASC';
+    if (sort === 'date') query += ' ORDER BY p.created_at DESC';
+    else if (sort === 'date_asc') query += ' ORDER BY p.created_at ASC';
+    else if (sort === 'title') query += ' ORDER BY p.title ASC';
+    else if (sort === 'title_asc') query += ' ORDER BY p.title DESC';
+    else if (sort === 'stars') query += ' ORDER BY p.stars DESC, p.id ASC';
+    else if (sort === 'stars_asc') query += ' ORDER BY p.stars ASC, p.id ASC';
+    else if (sort === 'priority_asc') query += ' ORDER BY p.priority ASC, p.id ASC';
+    else query += ' ORDER BY CASE p.status WHEN "reading" THEN 0 WHEN "unread" THEN 1 ELSE 2 END, p.priority DESC, p.id ASC';
 
     const parsedLimit = Math.min(parseInt(limit) || 50, 100);
     const parsedOffset = parseInt(offset) || 0;

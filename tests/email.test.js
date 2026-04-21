@@ -3,11 +3,8 @@
  * Run with: npm test
  */
 
-const {
-  EmailParser,
-  PaperMetadataFetcher,
-  EmailSyncService,
-} = require('../src/services/email');
+const { EmailParser, EmailSyncService } = require('../src/services/email');
+const { PaperMetadataFetcher } = require('../src/services/metadataFetch');
 
 describe('EmailParser', () => {
   describe('extractArxivIds', () => {
