@@ -46,7 +46,7 @@ function setupPaperRoutes(app) {
     else if (sort === 'stars') query += ' ORDER BY p.stars DESC, p.id ASC';
     else if (sort === 'stars_asc') query += ' ORDER BY p.stars ASC, p.id ASC';
     else if (sort === 'priority_asc') query += ' ORDER BY p.priority ASC, p.id ASC';
-    else query += ' ORDER BY CASE p.status WHEN "reading" THEN 0 WHEN "unread" THEN 1 ELSE 2 END, p.priority DESC, p.id ASC';
+    else query += ' ORDER BY CASE p.status WHEN \'reading\' THEN 0 WHEN \'unread\' THEN 1 ELSE 2 END, p.priority DESC, p.id ASC';
 
     const parsedLimit = Math.min(parseInt(limit) || 50, 100);
     const parsedOffset = parseInt(offset) || 0;
