@@ -12,6 +12,7 @@ const {
   TerminologyMergeService,
   TerminologyOrganizeService
 } = require('./terminology');
+const taskManager = require('./taskManager');
 const config = require('../../config');
 
 function createBackgroundServiceManager() {
@@ -82,6 +83,7 @@ function createBackgroundServiceManager() {
 module.exports = {
   BackgroundServiceManager,
   createBackgroundServiceManager,
+  taskManager,
   CacheBackgroundService,
   MetadataFetchService,
   MarkdownConversionService,

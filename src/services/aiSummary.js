@@ -23,6 +23,15 @@ class AISummaryService extends BackgroundService {
     };
   }
 
+  async hasPending() {
+    const papers = db.queryAll(`
+      SELECT id FROM papers WHERE abstract IS NOT NULL AND abstract != ''
+      AND ((summary IS NULL OR summary = '') OR (ai_category IS NULL OR ai_category = '') OR stars = 0)
+      LIMIT 1
+    `);
+    return papers.length > 0;
+  }
+
   async execute() {
     const ctx = this._prepareContext();
     const papers = db.queryAll(`

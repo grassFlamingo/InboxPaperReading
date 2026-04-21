@@ -58,19 +58,19 @@ const api = {
   },
 
   async syncEmails() {
-    return fetch(`${API}/api/sync`, { method: 'POST' }).then(r => r.json());
+    return fetch(`${API}/api/bg/sync`, { method: 'POST' }).then(r => r.json());
   },
 
   async getSyncStatus() {
-    return fetch(`${API}/api/sync-status`).then(r => r.json());
+    return fetch(`${API}/api/bg/sync-status`).then(r => r.json());
   },
 
   async getBgTasksStatus() {
-    return fetch(`${API}/api/bg-tasks-status`).then(r => r.json());
+    return fetch(`${API}/api/bg/status`).then(r => r.json());
   },
 
   async runBgTask(task) {
-    return fetch(`${API}/api/bg-task-run`, { 
+    return fetch(`${API}/api/bg/task/run`, { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ task })

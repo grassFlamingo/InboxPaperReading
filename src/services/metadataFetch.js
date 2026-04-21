@@ -13,6 +13,15 @@ class MetadataFetchService extends BackgroundService {
     });
   }
 
+  async hasPending() {
+    const papers = db.queryAll(`
+      SELECT id FROM papers WHERE arxiv_id IS NOT NULL AND arxiv_id != ''
+      AND (abstract IS NULL OR abstract = '' OR title LIKE 'arXiv:%' OR title LIKE 'arXiv Query:%')
+      LIMIT 1
+    `);
+    return papers.length > 0;
+  }
+
   async execute() {
     const papers = db.queryAll(`
       SELECT * FROM papers WHERE arxiv_id IS NOT NULL AND arxiv_id != ''

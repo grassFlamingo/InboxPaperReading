@@ -184,17 +184,17 @@ IMPORTANT: Do NOT use <think/> tags. Reply directly with JSON only.`;
     res.status(201).json({ id: lastId, title: extracted.title, authors: extracted.authors, source_type: sourceType, category: finalCategory, stars: starsAi, abstract_preview: abstract.length > 100 ? abstract.substring(0, 100) + '...' : abstract, message: 'imported' });
   });
 
-  // GET /api/sync-status - Get email sync status
-  app.get('/api/sync-status', (req, res) => {
-    const bgManager = require('../services/backgroundManager');
-    const status = bgManager.getBgTaskStatus();
+  // GET /api/bg/sync-status - Get email sync status
+  app.get('/api/bg/sync-status', (req, res) => {
+    const taskManager = require('../services/taskManager');
+    const status = taskManager.getStatus();
     res.json(status.emailSync || { running: false, lastRun: null, error: null });
   });
 
-  // POST /api/sync - Trigger email sync (runs in background)
-  app.post('/api/sync', async (req, res) => {
-    const bgManager = require('../services/backgroundManager');
-    const result = await bgManager.runBgTask('emailSync');
+  // POST /api/bg/sync - Trigger email sync (runs in background)
+  app.post('/api/bg/sync', async (req, res) => {
+    const taskManager = require('../services/taskManager');
+    const result = await taskManager.runTask('emailSync');
     res.json({ status: result.success ? 'started' : 'failed' });
   });
 

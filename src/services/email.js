@@ -370,6 +370,44 @@ class EmailSyncService {
     });
   }
 
+  async fetchEmailsCount() {
+    await this.connect();
+
+    return new Promise((resolve, reject) => {
+      const sinceDate = new Date();
+      sinceDate.setDate(sinceDate.getDate() - EMAIL_CONFIG.CHECK_DAYS);
+
+      const searchCriteria = [
+        ['SINCE', sinceDate.toISOString().split('T')[0]],
+        ['FROM', EMAIL_CONFIG.SENDER],
+      ];
+
+      this.imap.openBox(EMAIL_CONFIG.FOLDER, false, (err, box) => {
+        if (err) {
+          console.error('[Email] Failed to open folder:', err.message);
+          return reject(err);
+        }
+
+        this.imap.search(searchCriteria, (err, results) => {
+          if (err || !results || results.length === 0) {
+            return resolve(0);
+          }
+          resolve(results.length);
+        });
+      });
+    });
+  }
+
+  async hasPending() {
+    try {
+      const count = await this.fetchEmailsCount();
+      return count > 0;
+    } catch (e) {
+      console.error('[EmailSync] hasPending error:', e.message);
+      return false;
+    }
+  }
+
   async sync() {
     syncStatus.running = true;
     syncStatus.errors = [];
@@ -570,29 +608,43 @@ class EmailSyncBackgroundService {
     this.isScheduled = true;
   }
 
-  async run() {
+async run() {
     if (this.isRunning) {
       console.log(`[${this.label}] Already running, skipping`);
-      return;
+      return { emailsProcessed: 0, papersImported: 0 };
+    }
+
+    if (!this.emailService) {
+      this.emailService = new EmailSyncService();
     }
 
     this.isRunning = true;
     this.syncStatus.running = true;
 
     try {
-      if (this.emailService) {
-        await this.emailService.sync();
-        this.syncStatus = { ...this.emailService.syncStatus };
-      }
+      await this.emailService.sync();
+      this.syncStatus = { ...syncStatus };
       this.lastRun = new Date().toISOString();
+      return { 
+        emailsProcessed: this.syncStatus.emailsProcessed, 
+        papersImported: this.syncStatus.papersImported 
+      };
     } catch (e) {
       this.lastError = e.message;
       this.syncStatus.errors.push(e.message);
       console.error(`[${this.label}] Error:`, e.message);
+      return { error: e.message, emailsProcessed: 0, papersImported: 0 };
     } finally {
       this.isRunning = false;
       this.syncStatus.running = false;
     }
+  }
+
+  async hasPending() {
+    if (!this.emailService) {
+      this.emailService = new EmailSyncService();
+    }
+    return await this.emailService.hasPending();
   }
 
   stop() {

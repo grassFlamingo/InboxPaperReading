@@ -13,6 +13,19 @@ class TerminologyService extends BackgroundService {
     });
   }
 
+  async hasPending() {
+    const papers = db.queryAll(`
+      SELECT p.id FROM papers p
+      LEFT JOIN tech_terms t ON t.source_paper_id = p.id
+      WHERE p.abstract IS NOT NULL AND p.abstract != ''
+      AND LENGTH(p.abstract) > 100
+      GROUP BY p.id
+      HAVING COUNT(t.id) < 3
+      LIMIT 1
+    `);
+    return papers.length > 0;
+  }
+
   async execute() {
     const papers = db.queryAll(`
       SELECT p.id, p.title, p.abstract, p.category

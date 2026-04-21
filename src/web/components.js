@@ -90,9 +90,7 @@ function renderCard(p, idx, options = {}) {
   const href = paperUrl(p);
   const numHtml = showNum ? `<div class="paper-num">${idx}</div>` : '';
   const hasMarkdown = p.markdown_content && p.markdown_content.length > 50;
-  const previewSrc = p.cached_preview_path 
-    ? `/api/papers/${p.id}/preview` 
-    : (p.preview_image && p.preview_image.startsWith('data:') ? p.preview_image : '');
+  const previewSrc = p.cached_preview_path || '';
   const hasPreview = previewSrc.length > 0;
   const isArxiv = p.arxiv_id && srcType === 'paper';
   const isCached = p.cached_file_path && p.cached_file_path.length > 10;

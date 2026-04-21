@@ -76,7 +76,6 @@ async function downloadPaper(paper) {
     if (previewPath) {
       const previewUrl = `/api/papers/${paper.id}/preview`;
       db.runQuery('UPDATE cached_papers SET preview_image = ? WHERE paper_id = ?', [previewPath, paper.id]);
-      db.runQuery('UPDATE papers SET preview_image = ? WHERE id = ?', [previewUrl, paper.id]);
     }
 
     return { success: true, msg: 'cached', file_path: filePath, preview: !!previewPath };
@@ -119,7 +118,6 @@ function deleteCachedPaper(paperId) {
       fs.unlinkSync(cached.file_path);
     }
     db.runQuery('DELETE FROM cached_papers WHERE paper_id = ?', [paperId]);
-    db.runQuery('UPDATE papers SET preview_image = NULL WHERE id = ?', [paperId]);
     return true;
   } catch (e) {
     console.error('[Cache] Delete failed:', e.message);
@@ -147,7 +145,6 @@ async function regeneratePreview(paperId) {
 
     const previewUrl = previewPath ? `/api/papers/${paperId}/preview` : null;
     db.runQuery('UPDATE cached_papers SET preview_image = ? WHERE paper_id = ?', [previewPath, paperId]);
-    db.runQuery('UPDATE papers SET preview_image = ? WHERE id = ?', [previewUrl, paperId]);
 
     return { success: true, preview: !!previewPath };
   } catch (e) {
@@ -191,6 +188,11 @@ class CacheBackgroundService extends BackgroundService {
       ORDER BY cp.id ASC NULLS FIRST, p.priority DESC, p.id DESC
       LIMIT ?
     `, [limit]);
+  }
+
+  async hasPending() {
+    const papers = this._getPapersToCache(1);
+    return papers.length > 0;
   }
 
   async execute() {

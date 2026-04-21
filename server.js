@@ -30,13 +30,19 @@ setupSummaryRoutes(app);
 setupTechTermsRoutes(app);
 
 // Background task manager endpoints
-const bgManager = require('./src/services/backgroundManager');
+const taskManager = require('./src/services/taskManager');
 
-app.get('/api/bg-tasks-status', (req, res) => res.json(bgManager.getBgTaskStatus()));
-app.post('/api/bg-task-run', async (req, res) => {
+app.get('/api/bg/status', (req, res) => res.json(taskManager.getStatus()));
+app.get('/api/bg/workers', (req, res) => res.json(taskManager.getWorkersStatus()));
+app.post('/api/bg/worker/:task/kill', async (req, res) => {
+  const { task } = req.params;
+  const result = await taskManager.killWorker(task);
+  res.json(result);
+});
+app.post('/api/bg/task/run', async (req, res) => {
   const { task } = req.body;
   if (!task) return res.status(400).json({ error: 'task required' });
-  const result = await bgManager.runBgTask(task);
+  const result = await taskManager.runTask(task);
   res.json(result);
 });
 
@@ -49,8 +55,6 @@ const PORT = config.PORT;
 (async () => {
   try {
     await db.initTables();
-    await db.initMoreTables();
-    await db.migrate();
 
     console.log('[OK] Paper reading list server started');
     console.log(`   Local:  http://localhost:${PORT}`);
@@ -59,8 +63,9 @@ const PORT = config.PORT;
     try { lanIp = execSync('hostname -I | awk \'{print $1}\'', { timeout: 5000, encoding: 'utf8' }).trim(); } catch (e) {}
     if (lanIp && lanIp !== 'unknown') console.log(`   LAN:    http://${lanIp}:${PORT}`);
 
-    setTimeout(() => bgManager.startBackgroundTasks(), config.BG_WORKER?.DELAY_MS || 1000);
-    console.log('[BG] Background worker tasks scheduled');
+    await taskManager.init();
+    taskManager.start();
+    console.log('[BG] Background tasks scheduled');
 
     app.listen(PORT, config.HOST, () => console.log(`Server running on port ${PORT}`));
   } catch (e) {

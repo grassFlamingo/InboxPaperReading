@@ -13,6 +13,15 @@ class MarkdownConversionService extends BackgroundService {
     });
   }
 
+  async hasPending() {
+    const papers = db.queryAll(`
+      SELECT id FROM papers WHERE source_type IN (${WEB_CONTENT_TYPES.map(() => '?').join(',')})
+      AND (markdown_content IS NULL OR markdown_content = '' OR LENGTH(markdown_content) < 100)
+      LIMIT 1
+    `, WEB_CONTENT_TYPES);
+    return papers.length > 0;
+  }
+
   async execute() {
     const papers = db.queryAll(`
       SELECT * FROM papers WHERE source_type IN (${WEB_CONTENT_TYPES.map(() => '?').join(',')})
