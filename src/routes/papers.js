@@ -125,7 +125,10 @@ function setupPaperRoutes(app) {
     const reading = db.queryOne("SELECT COUNT(*) as c FROM papers WHERE status='reading'").c;
     const done = db.queryOne("SELECT COUNT(*) as c FROM papers WHERE status='done'").c;
     const cached = db.queryOne("SELECT COUNT(*) as c FROM cached_papers").c;
-    res.json({ total, unread, reading, done, cached });
+    const cachedCompleted = db.queryOne("SELECT COUNT(*) as c FROM cached_papers WHERE status='completed'").c;
+    const cachedFailed = db.queryOne("SELECT COUNT(*) as c FROM cached_papers WHERE status='failed'").c;
+    const cachedDownloading = db.queryOne("SELECT COUNT(*) as c FROM cached_papers WHERE status='downloading'").c;
+    res.json({ total, unread, reading, done, cached, cachedCompleted, cachedFailed, cachedDownloading });
   });
 
   // POST /api/import-url - Import from URL with LLM extraction

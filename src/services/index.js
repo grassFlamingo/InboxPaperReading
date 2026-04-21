@@ -1,5 +1,5 @@
 const { BackgroundServiceManager } = require('./backgroundService');
-const { CacheBackgroundService } = require('./cache');
+const { CacheBackgroundService, backfillExistingCachedPapers } = require('./cache');
 const { MetadataFetchService } = require('./metadataFetch');
 const { MarkdownConversionService } = require('./markdownConversion');
 const { AISummaryService } = require('./aiSummary');
@@ -32,6 +32,10 @@ function createBackgroundServiceManager() {
     enabled: true,
     initialDelayMs: config.BG_WORKER?.DELAY_MS + 5000,
   }));
+
+  setTimeout(() => {
+    backfillExistingCachedPapers();
+  }, 1000);
 
   manager.register(new LayoutAnalysisBackgroundService({
     enabled: true,

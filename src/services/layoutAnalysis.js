@@ -235,7 +235,7 @@ class LayoutAnalysisService {
       analyzed_at: new Date().toISOString(),
     });
 
-    db.runQuery('UPDATE papers SET layout_data = ? WHERE id = ?', [layoutData, paperId]);
+    db.runQuery('UPDATE cached_papers SET layout_data = ? WHERE paper_id = ?', [layoutData, paperId]);
 
     console.log(`[LayoutService] Analyzed #${paperId}: ${detections.length} detections, title: ${titleDet?.label}`);
 
@@ -286,11 +286,11 @@ async function runLayoutAnalysisForPaper(paperId) {
 
 async function getPapersNeedingLayoutAnalysis() {
   return db.queryAll(`
-    SELECT p.id, p.title, p.layout_data, cp.file_path
+    SELECT p.id, p.title, cp.layout_data, cp.file_path
     FROM papers p
     JOIN cached_papers cp ON p.id = cp.paper_id
     WHERE cp.file_path IS NOT NULL AND cp.file_path != ''
-    AND (p.layout_data IS NULL OR p.layout_data = '' OR p.layout_data = 'null')
+    AND (cp.layout_data IS NULL OR cp.layout_data = '' OR cp.layout_data = 'null')
     ORDER BY p.id DESC
     LIMIT 20
   `);

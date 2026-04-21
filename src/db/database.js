@@ -9,6 +9,9 @@ class Database {
   constructor(dbPath = null) {
     this.db = null;
     this.DB_PATH = dbPath || path.join(__dirname, '../../', config.DB_PATH);
+    this.autoSaveEnabled = config.DB?.AUTO_SAVE !== false;
+    this.autoSaveIntervalMs = config.DB?.AUTO_SAVE_INTERVAL_MS || 30000;
+    this.autoSaveTimer = null;
   }
 
   static getInstance(dbPath = null) {
@@ -24,6 +27,13 @@ class Database {
       const fileBuffer = fs.existsSync(this.DB_PATH) ? fs.readFileSync(this.DB_PATH) : null;
       this.db = fileBuffer ? new SQL.Database(fileBuffer) : new SQL.Database();
       this.db.run('PRAGMA journal_mode=WAL');
+
+      if (this.autoSaveEnabled) {
+        this.autoSaveTimer = setInterval(() => {
+          this.save();
+          console.debug('[DB] Auto-saved');
+        }, this.autoSaveIntervalMs);
+      }
     }
     return this.db;
   }
@@ -34,6 +44,14 @@ class Database {
       const buffer = Buffer.from(data);
       fs.writeFileSync(this.DB_PATH, buffer);
     }
+  }
+
+  close() {
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+    this.save();
   }
 
   queryAll(sql, params = []) {
@@ -63,7 +81,7 @@ class Database {
   runQuery(sql, params = []) {
     this.db.run(sql, params);
     if (sql.trim().toUpperCase().startsWith('INSERT')) {
-      const result = this.db.exec('SELECT MAX(rowid) as id FROM papers');
+      const result = this.db.exec('SELECT last_insert_rowid()');
       return result[0]?.values[0][0] || 0;
     }
     return 0;

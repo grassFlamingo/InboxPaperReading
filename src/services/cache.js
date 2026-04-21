@@ -29,6 +29,51 @@ function findCachedFile(arxivId) {
   return null;
 }
 
+function backfillExistingCachedPapers() {
+  if (!config.BG_WORKER?.REUSE_CACHED_PAPERS) {
+    console.debug('[Cache] REUSE_CACHED_PAPERS disabled, skipping backfill');
+    return;
+  }
+
+  if (!fs.existsSync(CACHE_DIR)) {
+    console.debug('[Cache] CACHE_DIR does not exist, skipping backfill');
+    return;
+  }
+
+  const files = fs.readdirSync(CACHE_DIR).filter(f => f.endsWith('.pdf'));
+  console.log(`[Cache] Backfilling ${files.length} cached files...`);
+
+  let count = 0;
+  for (const file of files) {
+    const arxivId = file.split('_')[0];
+    if (!arxivId) continue;
+
+    const paper = db.queryOne('SELECT id FROM papers WHERE arxiv_id = ?', [arxivId]);
+    if (!paper) {
+      console.debug(`[Cache] Backfill: no paper found for arxiv ${arxivId}`);
+      continue;
+    }
+
+    const existing = getCachedPaper(paper.id);
+    if (existing) {
+      console.debug(`[Cache] Backfill: paper #${paper.id} already in cached_papers`);
+      continue;
+    }
+
+    const filePath = path.join(CACHE_DIR, file);
+    const fileSize = fs.statSync(filePath).size;
+
+    console.debug(`[Cache] Backfill INSERT: paper_id=${paper.id}, file=${filePath}, size=${fileSize}`);
+    db.runQuery(
+      `INSERT OR IGNORE INTO cached_papers (paper_id, file_path, file_size, status) VALUES (?, ?, ?, 'completed')`,
+      [paper.id, filePath, fileSize]
+    );
+    count++;
+  }
+
+  console.log(`[Cache] Backfilled ${count} cached papers`);
+}
+
 function getCachedPaper(paperId) {
   return db.queryOne('SELECT * FROM cached_papers WHERE paper_id = ?', [paperId]);
 }
@@ -49,12 +94,15 @@ async function downloadPaper(paper) {
   ensureCacheDir();
 
   const existing = getCachedPaper(paper.id);
+  console.debug(`[Cache] getCachedPaper(#${paper.id}):`, existing);
+
   if (existing && existing.status === 'completed') {
     return { success: true, msg: 'already cached', file_path: existing.file_path };
   }
 
   const reuseExisting = config.BG_WORKER?.REUSE_CACHED_PAPERS !== false;
   const existingFile = reuseExisting ? findCachedFile(paper.arxiv_id) : null;
+  console.debug(`[Cache] reuseExisting=${reuseExisting}, existingFile=${existingFile}`);
 
   if (existingFile && fs.existsSync(existingFile)) {
     console.log(`[Cache] Reusing existing file for #${paper.id}: ${paper.arxiv_id}`);
@@ -62,9 +110,13 @@ async function downloadPaper(paper) {
     const previewPath = path.join(CACHE_DIR, 'previews', `${paper.id}_preview.png`);
     const hasPreview = fs.existsSync(previewPath);
 
+    console.debug(`[Cache] existing=${!!existing}, fileSize=${fileSize}, hasPreview=${hasPreview}`);
+
     if (existing) {
+      console.debug(`[Cache] UPDATE cached_papers for #${paper.id}`);
       db.runQuery(`UPDATE cached_papers SET file_path = ?, file_size = ?, preview_image = ?, status = 'completed' WHERE paper_id = ?`, [existingFile, fileSize, hasPreview ? previewPath : null, paper.id]);
     } else {
+      console.debug(`[Cache] INSERT into cached_papers: paper_id=${paper.id}, file=${existingFile}, size=${fileSize}`);
       db.runQuery(`INSERT INTO cached_papers (paper_id, file_path, file_size, preview_image, status) VALUES (?, ?, ?, ?, 'completed')`, [paper.id, existingFile, fileSize, hasPreview ? previewPath : null]);
     }
     return { success: true, msg: 'reuse cached', file_path: existingFile, preview: hasPreview };
@@ -287,6 +339,7 @@ module.exports = {
   deleteCachedPaper,
   regeneratePreview,
   regenerateAllPreviews,
+  backfillExistingCachedPapers,
   CACHE_DIR,
   CacheBackgroundService,
 };
