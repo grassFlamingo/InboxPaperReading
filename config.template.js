@@ -40,11 +40,8 @@ module.exports = {
 
   BG_WORKER: {
     DELAY_MS: 5000,
-    BATCH_SIZE: 20,
     ERROR_DELAY_MS: 2000,
     AUTO_CACHE_FOR_ALL_PAPERS: true,
-    AUTO_CACHE_DELAY_MS: 30000,
-    AUTO_CACHE_MAX_BATCHES: 10,
   },
 
   // Email sync settings (optional)

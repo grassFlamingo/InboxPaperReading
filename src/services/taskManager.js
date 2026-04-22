@@ -14,6 +14,7 @@ const TASK_NAMES = [
 const EMAIL_TASK_NAME = 'emailSync';
 
 const DEFAULT_INTERVAL_MS = config.BG_WORKER?.DEFAULT_INTERVAL_MS || 600000;
+const MIN_INTERVAL_MS = 60000;  // Minimum 1 minute between task runs
 const DEFAULT_TIMEOUT_MS = config.BG_WORKER?.DEFAULT_TIMEOUT_MS || 1800000;
 const HEARTBEAT_INTERVAL_MS = config.BG_WORKER?.HEARTBEAT_INTERVAL_MS || 30000;
 const WORKER_CHECK_INTERVAL_MS = config.BG_WORKER?.WORKER_CHECK_INTERVAL_MS || 30000;
@@ -192,7 +193,10 @@ class TaskManager {
         continue;
       }
 
-      const intervalMs = schedule.interval_ms || DEFAULT_INTERVAL_MS;
+      const intervalMs = Math.max(schedule.interval_ms || DEFAULT_INTERVAL_MS, MIN_INTERVAL_MS);
+      if (schedule.interval_ms < MIN_INTERVAL_MS) {
+        console.log(`[TaskManager] ${taskName}: interval ${schedule.interval_ms}ms too low, using ${MIN_INTERVAL_MS}ms`);
+      }
       console.log(`[TaskManager] ${taskName}: scheduling every ${intervalMs}ms`);
 
       const timer = setInterval(() => {
@@ -344,23 +348,10 @@ class TaskManager {
       }
       const result = await this._runWorker(task, args);
       
-      if (task !== EMAIL_TASK_NAME) {
-        await this._reloadDatabase();
-      }
-      
       return { success: true, task, result };
     } catch (e) {
       await this._updateStatus(task, 'error', e.message, 0);
       return { success: false, task, error: e.message };
-    }
-  }
-
-  _reloadDatabase() {
-    try {
-      db.close();
-      db.connect();
-    } catch (e) {
-      console.error('[TaskManager] Failed to reload database:', e.message);
     }
   }
 
@@ -437,10 +428,11 @@ class TaskManager {
   }
 
   async setInterval(taskName, intervalMs) {
-    db.run('UPDATE bg_task_status SET interval_ms = ? WHERE task_name = ?', [intervalMs, taskName]);
+    const safeInterval = Math.max(intervalMs, MIN_INTERVAL_MS);
+    db.run('UPDATE bg_task_status SET interval_ms = ? WHERE task_name = ?', [safeInterval, taskName]);
     const schedule = this.schedules.get(taskName);
     if (schedule) {
-      schedule.interval_ms = intervalMs;
+      schedule.interval_ms = safeInterval;
     }
 
     const oldTimer = this.timers.get(taskName);
@@ -451,7 +443,7 @@ class TaskManager {
     if (schedule?.enabled) {
       const timer = setInterval(() => {
         this._checkAndRun(taskName);
-      }, intervalMs);
+      }, safeInterval);
       this.timers.set(taskName, timer);
     }
   }

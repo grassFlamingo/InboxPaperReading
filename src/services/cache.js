@@ -236,13 +236,9 @@ class CacheBackgroundService extends BackgroundService {
       intervalMs: options.intervalMs || 0,
       initialDelayMs: options.initialDelayMs || config.BG_WORKER?.DELAY_MS + 5000,
     });
-    this.limit = options.limit || 20;
-    this.batchDelayMs = options.batchDelayMs || config.BG_WORKER?.AUTO_CACHE_DELAY_MS || 30000;
-    this.maxBatches = options.maxBatches || config.BG_WORKER?.AUTO_CACHE_MAX_BATCHES || 10;
-    this.processDelayMs = options.processDelayMs || 1000;
   }
 
-  _getPapersToCache(limit) {
+  _getPapersToCache() {
     return db.queryAll(`
       SELECT p.*, cp.id as cached_id, cp.file_path as cached_path
       FROM papers p
@@ -250,66 +246,31 @@ class CacheBackgroundService extends BackgroundService {
       WHERE p.arxiv_id IS NOT NULL AND p.arxiv_id != ''
       AND (cp.id IS NULL OR cp.status = 'failed')
       ORDER BY cp.id ASC NULLS FIRST, p.priority DESC, p.id DESC
-      LIMIT ?
-    `, [limit]);
+    `);
   }
 
   async hasPending() {
-    const papers = this._getPapersToCache(1);
+    const papers = this._getPapersToCache();
     return papers.length > 0;
   }
 
   async execute() {
-    if (!config.BG_WORKER?.AUTO_CACHE_FOR_ALL_PAPERS) {
-      const papers = this._getPapersToCache(this.limit);
-      console.log(`[${this.label}] Found ${papers.length} papers to cache`);
+    const papers = this._getPapersToCache();
+    console.debug(`[${this.label}] Found ${papers.length} papers to cache`);
 
-      for (const paper of papers) {
-        try {
-          const result = await downloadPaper(paper);
-          if (result.success) this.status.processed++;
-          else this.status.errors++;
-        } catch (e) {
-          this.status.errors++;
-          console.error(`[${this.label}] Error #${paper.id}:`, e.message);
-        }
-        await this.yieldIfNeeded();
-        await new Promise(r => setTimeout(r, this.processDelayMs)).catch(() => {});
+    for (const paper of papers) {
+      try {
+        const result = await downloadPaper(paper);
+        if (result.success) this.status.processed++;
+        else this.status.errors++;
+      } catch (e) {
+        this.status.errors++;
+        console.error(`[${this.label}] Error #${paper.id}:`, e.message);
       }
-    } else {
-      console.log(`[${this.label}] Auto-cache mode: fetching up to ${this.maxBatches} batches with ${this.batchDelayMs}ms delay`);
-
-      for (let batch = 0; batch < this.maxBatches; batch++) {
-        const papers = this._getPapersToCache(this.limit);
-        if (papers.length === 0) {
-          console.log(`[${this.label}] No more papers to cache`);
-          break;
-        }
-
-        console.log(`[${this.label}] Batch ${batch + 1}/${this.maxBatches}: ${papers.length} papers`);
-
-        for (const paper of papers) {
-          try {
-            const result = await downloadPaper(paper);
-            if (result.success) this.status.processed++;
-            else this.status.errors++;
-          } catch (e) {
-            this.status.errors++;
-            console.error(`[${this.label}] Error #${paper.id}:`, e.message);
-          }
-          await this.yieldIfNeeded();
-          await new Promise(r => setTimeout(r, this.processDelayMs)).catch(() => {});
-        }
-
-        if (batch < this.maxBatches - 1) {
-          console.log(`[${this.label}] Waiting ${this.batchDelayMs}ms before next batch...`);
-          await this._yield();
-          await new Promise(r => setTimeout(r, this.batchDelayMs)).catch(() => {});
-        }
-      }
+      await this.yieldIfNeeded();
     }
 
-    console.log(`[${this.label}] Done: ${this.status.processed} cached, ${this.status.errors} errors`);
+    console.debug(`[${this.label}] Done: ${this.status.processed} cached, ${this.status.errors} errors`);
   }
 }
 

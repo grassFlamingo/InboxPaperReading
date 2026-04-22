@@ -9,18 +9,38 @@ const OPENALEX_API = 'https://api.openalex.org/works/doi:10.48550/arXiv.';
 const OPENALEX_KEY = config.OPENALEX_ORG?.API || '';
 const USER_AGENT = config.CACHE?.USER_AGENT || 'Mozilla/5.0 (compatible; paperReader/1.0)';
 
+const ARXIV_ID_REGEX = /^\d{4}\.\d{4,5}(v\d+)?$/;
+
 class PaperMetadataFetcher {
+  static isValidArxivId(arxivId) {
+    return ARXIV_ID_REGEX.test(arxivId);
+  }
+
   static async fetch(arxivId, retries = 3) {
     if (!arxivId) return null;
 
+    if (!this.isValidArxivId(arxivId)) {
+      console.debug(`[PaperMetadataFetcher] #${arxivId}: invalid arxiv_id format, skipping`);
+      return null;
+    }
+
     const arxivResult = await this.fetchFromArxivApi(arxivId, retries);
-    if (arxivResult) return arxivResult;
-    
+    if (arxivResult) {
+      console.debug(`[PaperMetadataFetcher] #${arxivId}: got from arXiv API`);
+      return arxivResult;
+    }
+
     const ssResult = await this.fetchFromSemanticScholar(arxivId, retries);
-    if (ssResult) return ssResult;
+    if (ssResult) {
+      console.debug(`[PaperMetadataFetcher] #${arxivId}: got from Semantic Scholar`);
+      return ssResult;
+    }
 
     const openalexResult = await this.fetchFromOpenAlex(arxivId, retries);
-    if (openalexResult) return openalexResult;
+    if (openalexResult) {
+      console.debug(`[PaperMetadataFetcher] #${arxivId}: got from OpenAlex`);
+      return openalexResult;
+    }
 
     return null;
   }
@@ -30,7 +50,7 @@ class PaperMetadataFetcher {
       try {
         const url = `${SEMANTIC_API}${arxivId}?fields=title,authors,abstract,year,venue,externalIds,url`;
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
+        const timeout = setTimeout(() => controller.abort(), 30000);
         
         const response = await fetch(url, { 
           signal: controller.signal,
@@ -49,7 +69,7 @@ class PaperMetadataFetcher {
         return this.parseSemanticResponse(data, arxivId);
       } catch (e) {
         console.warn(`[PaperMetadataFetcher] Semantic Scholar attempt ${attempt} failed: ${e.message}`);
-        if (attempt < retries) await new Promise(r => setTimeout(r, 1500));
+        if (attempt < retries) await new Promise(r => setTimeout(r, 10000));
       }
     }
     return null;
@@ -60,7 +80,7 @@ class PaperMetadataFetcher {
       try {
         const url = `${OPENALEX_API}${arxivId}`;
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
+        const timeout = setTimeout(() => controller.abort(), 30000);
         
         const headers = { 
           'Accept': 'application/json',
@@ -79,21 +99,25 @@ class PaperMetadataFetcher {
         return this.parseOpenAlexResponse(data, arxivId);
       } catch (e) {
         console.warn(`[PaperMetadataFetcher] OpenAlex attempt ${attempt} failed: ${e.message}`);
-        if (attempt < retries) await new Promise(r => setTimeout(r, 1500));
+        if (attempt < retries) await new Promise(r => setTimeout(r, 10000));
       }
     }
     return null;
   }
 
-  static parseOpenAlexResponse(data, arxivId) {
+static parseOpenAlexResponse(data, arxivId) {
     try {
-      const title = data.title || `arXiv:${arxivId}`;
+      if (!data || !data.title) {
+        console.debug(`[PaperMetadataFetcher] #${arxivId}: OpenAlex returned no data`);
+        return null;
+      }
+      const title = data.title;
       const authors = (data.authorships || []).map(a => a.author?.display_name).filter(Boolean).join(', ');
       const abstract = data.abstract_inverted_index ? this.reconstructAbstract(data.abstract_inverted_index) : (data.abstract || '');
       const published = data.publication_date || '';
       const pdfUrl = data.primary_location?.pdf_url || `https://arxiv.org/pdf/${arxivId}`;
       const sourceUrl = data.primary_location?.source?.display_name || data.doi || `https://arxiv.org/abs/${arxivId}`;
-      
+
       return {
         title,
         authors,
@@ -130,34 +154,41 @@ class PaperMetadataFetcher {
       try {
         const url = `${ARXIV_API}?id_list=${arxivId}`;
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 600000);
-        
-        const response = await fetch(url, { 
+        const timeout = setTimeout(() => controller.abort(), 60000);
+
+        const response = await fetch(url, {
           signal: controller.signal,
           headers: { 'User-Agent': USER_AGENT }
         });
         clearTimeout(timeout);
-        
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
         const text = await response.text();
         return this.parseArxivResponse(text, arxivId);
       } catch (e) {
-        console.warn(`[PaperMetadataFetcher] arXiv API attempt ${attempt}/${retries} failed for ${arxivId}: ${e.message}`);
-        if (attempt < retries) await new Promise(r => setTimeout(r, 5000));
+        console.warn(`[PaperMetadataFetcher] arXiv attempt ${attempt}/${retries} failed for ${arxivId}: ${e.message}`);
+        if (attempt < retries) await new Promise(r => setTimeout(r, 10000));
       }
     }
-    
-    console.error(`[PaperMetadataFetcher] All APIs failed for ${arxivId}`);
+
     return null;
   }
 
   static parseSemanticResponse(data, arxivId) {
     try {
+      if (!data || !data.title) {
+        console.debug(`[PaperMetadataFetcher] #${arxivId}: Semantic Scholar returned no data`);
+        return null;
+      }
       const authors = (data.authors || []).map(a => a.name).join(', ');
       const externalIds = data.externalIds || {};
       const pdfUrl = externalIds.DOI ? `https://arxiv.org/pdf/${arxivId}` : data.url || `https://arxiv.org/abs/${arxivId}`;
-      
+
       return {
-        title: data.title || `arXiv:${arxivId}`,
+        title: data.title,
         authors,
         abstract: data.abstract || '',
         source: data.venue || 'arXiv',
@@ -177,6 +208,11 @@ class PaperMetadataFetcher {
       const entryMatch = xmlText.match(/<entry>([\s\S]*?)<\/entry>/i);
       const entryContent = entryMatch ? entryMatch[1] : xmlText;
 
+      if (!entryContent || entryContent.length < 10) {
+        console.debug(`[PaperMetadataFetcher] #${arxivId}: no entry in arXiv response`);
+        return null;
+      }
+
       const extract = (tag) => {
         const match = entryContent.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'));
         return match ? match[1].trim() : '';
@@ -189,12 +225,17 @@ class PaperMetadataFetcher {
         return nameMatch ? nameMatch[1].trim() : '';
       }).filter(Boolean).join(', ');
 
+      if (!title || title.startsWith('arXiv Query')) {
+        console.debug(`[PaperMetadataFetcher] #${arxivId}: arXiv returned invalid title="${title}"`);
+        return null;
+      }
+
       const published = extract('published');
       const pdfLink = `https://arxiv.org/pdf/${arxivId}`;
       const absLink = `https://arxiv.org/abs/${arxivId}`;
 
       return {
-        title: title || `arXiv:${arxivId}`,
+        title,
         authors,
         abstract: summary,
         source: 'arXiv',
@@ -224,6 +265,8 @@ class MetadataFetchService extends BackgroundService {
     const papers = db.queryAll(`
       SELECT id FROM papers WHERE arxiv_id IS NOT NULL AND arxiv_id != ''
       AND (abstract IS NULL OR abstract = '' OR title LIKE 'arXiv:%' OR title LIKE 'arXiv Query:%')
+      AND arxiv_id NOT LIKE 'arXiv Query:%'
+      AND arxiv_id NOT LIKE '%&%'
       LIMIT 1
     `);
     return papers.length > 0;
@@ -233,9 +276,13 @@ class MetadataFetchService extends BackgroundService {
     console.debug('[MetadataFetchService] Starting metadata fetch...');
     const papers = db.queryAll(`
       SELECT * FROM papers WHERE arxiv_id IS NOT NULL AND arxiv_id != ''
+      AND arxiv_id NOT LIKE 'arXiv Query:%'
+      AND arxiv_id NOT LIKE '%&%'
       AND (abstract IS NULL OR abstract = '' OR title LIKE 'arXiv:%' OR title LIKE 'arXiv Query:%')
       ORDER BY id DESC
     `);
+
+    const validPapers = papers.filter(p => PaperMetadataFetcher.isValidArxivId(p.arxiv_id));
 
     console.debug(`[MetadataFetchService] Found ${papers.length} papers needing metadata:`, papers.map(p => ({ id: p.id, arxiv_id: p.arxiv_id, title: p.title })));
 
@@ -249,6 +296,7 @@ class MetadataFetchService extends BackgroundService {
             UPDATE papers SET title = ?, authors = ?, abstract = ?, source = ?, source_url = ?
             WHERE id = ?
           `, [metadata.title, metadata.authors, metadata.abstract, metadata.source, metadata.source_url, paper.id]);
+          console.debug(`[MetadataFetchService] Updated paper #${paper.id} in database`);
           this.status.processed++;
         } else {
           console.debug(`[MetadataFetchService] No metadata found for #${paper.id}`);
@@ -258,7 +306,7 @@ class MetadataFetchService extends BackgroundService {
         console.error(`[MetadataFetchService] Error #${paper.id}:`, e.message);
       }
       await this.yieldIfNeeded();
-      await this._setTimeout(500);
+      await this._setTimeout(2000);
     }
 
     console.debug(`[MetadataFetchService] Done: ${this.status.processed} updated, ${this.status.errors} errors`);

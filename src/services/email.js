@@ -20,7 +20,6 @@ class EmailParser {
       /arxiv\.org\/abs\/(\d{4}\.\d{4,5})/gi,
       /arxiv\.org\/pdf\/(\d{4}\.\d{4,5})/gi,
       /arxiv:(\d{4}\.\d{4,5})/gi,
-      /(\d{4}\.\d{4,5})/g,
     ];
 
     const content = html + ' ' + text;

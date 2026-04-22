@@ -19,23 +19,14 @@ class Database {
   }
 
   connect() {
-    if (!this.db) {
-      this.db = new DatabaseSync(this.DB_PATH);
-    }
+    if (this.db) return this.db;
+    this.db = new DatabaseSync(this.DB_PATH);
     this.db.exec('PRAGMA journal_mode=WAL');
-    this.db.exec('PRAGMA busy_timeout=5000');
+    this.db.exec('PRAGMA busy_timeout=10000');
     return this.db;
   }
 
   save() {
-    // No-op: SQLite sync automatically persists changes
-  }
-
-  close() {
-    if (this.db) {
-      this.db.close();
-      this.db = null;
-    }
   }
 
   queryAll(sql, params = []) {
@@ -90,8 +81,6 @@ class Database {
     for (const stmt of statements) {
       if (stmt.trim()) this.db.exec(stmt);
     }
-
-    this.save();
   }
 }
 
