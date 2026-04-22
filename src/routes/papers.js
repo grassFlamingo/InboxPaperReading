@@ -8,7 +8,7 @@ const emailSync = require('../services/email');
 const { startEmailSync, getSyncStatus } = require('../services/email');
 const { buildGlossary } = require('./techterms');
 const cacheService = require('../services/cache');
-const { CACHE_DIR } = require('../services/cache');
+const { CACHE_DIR, PDF_DIR } = require('../services/cache');
 
 function getPreviewUrl(cachedPreviewPath, paperId) {
   if (!cachedPreviewPath || cachedPreviewPath.startsWith('data:')) return null;
@@ -236,7 +236,7 @@ IMPORTANT: Do NOT use <think/> tags. Reply directly with JSON only.`;
     if (!cached || !cached.file_path) {
       return res.status(404).json({ error: 'not cached' });
     }
-    const filePath = path.join(CACHE_DIR, cached.file_path);
+    const filePath = path.join(PDF_DIR, cached.file_path);
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'file not found' });
     }

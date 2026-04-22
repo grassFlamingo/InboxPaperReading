@@ -230,33 +230,38 @@ class MetadataFetchService extends BackgroundService {
   }
 
   async execute() {
+    console.debug('[MetadataFetchService] Starting metadata fetch...');
     const papers = db.queryAll(`
       SELECT * FROM papers WHERE arxiv_id IS NOT NULL AND arxiv_id != ''
       AND (abstract IS NULL OR abstract = '' OR title LIKE 'arXiv:%' OR title LIKE 'arXiv Query:%')
       ORDER BY id DESC
     `);
 
-    console.log(`[${this.label}] Found ${papers.length} papers needing metadata`);
+    console.debug(`[MetadataFetchService] Found ${papers.length} papers needing metadata:`, papers.map(p => ({ id: p.id, arxiv_id: p.arxiv_id, title: p.title })));
 
     for (const paper of papers) {
       try {
+        console.debug(`[MetadataFetchService] Fetching metadata for paper #${paper.id} (${paper.arxiv_id})...`);
         const metadata = await PaperMetadataFetcher.fetch(paper.arxiv_id);
         if (metadata) {
+          console.debug(`[MetadataFetchService] Got metadata for #${paper.id}: title="${metadata.title}", authors="${metadata.authors?.substring(0, 50)}..."`);
           db.runQuery(`
             UPDATE papers SET title = ?, authors = ?, abstract = ?, source = ?, source_url = ?
             WHERE id = ?
           `, [metadata.title, metadata.authors, metadata.abstract, metadata.source, metadata.source_url, paper.id]);
           this.status.processed++;
+        } else {
+          console.debug(`[MetadataFetchService] No metadata found for #${paper.id}`);
         }
       } catch (e) {
         this.status.errors++;
-        console.error(`[${this.label}] Error #${paper.id}:`, e.message);
+        console.error(`[MetadataFetchService] Error #${paper.id}:`, e.message);
       }
       await this.yieldIfNeeded();
       await this._setTimeout(500);
     }
 
-    console.log(`[${this.label}] Done: ${this.status.processed} updated, ${this.status.errors} errors`);
+    console.debug(`[MetadataFetchService] Done: ${this.status.processed} updated, ${this.status.errors} errors`);
   }
 }
 
