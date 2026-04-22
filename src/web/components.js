@@ -108,18 +108,26 @@ function renderCard(p, idx, options = {}) {
 
   let cropStyle = '';
   let titleFromPdf = '';
-  let titleY = 0.5;
+  let titleY = 0;
   try {
     if (p.layout_data) {
       const layout = JSON.parse(p.layout_data);
-      const bbox = layout.highlighted_bbox || layout.title_bbox;
       const imgH = layout.image_height || 800;
-      if (bbox) {
-        if (layout.highlighted_label === 'image') {
-          titleFromPdf = '📷 图片';
-        } else if (layout.title_bbox?.text) {
+      let bbox = null;
+
+      if (layout.image_bbox) {
+        bbox = layout.image_bbox;
+        titleFromPdf = '📷 图片';
+      } else if (layout.title_bbox) {
+        bbox = layout.title_bbox;
+        if (layout.title_bbox.text) {
           titleFromPdf = layout.title_bbox.text;
         }
+      } else if (layout.abstract_bbox) {
+        bbox = layout.abstract_bbox;
+      }
+
+      if (bbox) {
         const tb = bbox;
         titleY = ((tb.y1 + tb.y2) / 2) / imgH;
         const cropPos = Math.min(Math.max(titleY * 100, 10), 70);

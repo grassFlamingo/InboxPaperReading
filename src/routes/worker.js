@@ -137,12 +137,12 @@ const WORKER_TASKS = {
     label: 'Doc Layout',
     getQuery: () => {
       const rows = db.queryAll(`
-        SELECT p.id, p.title, p.layout_data, cp.file_path
-        FROM papers p
-        JOIN cached_papers cp ON p.id = cp.paper_id
+        SELECT cp.paper_id as id, p.title, cp.file_path
+        FROM cached_papers cp
+        JOIN papers p ON p.id = cp.paper_id
         WHERE cp.file_path IS NOT NULL AND cp.file_path != ''
-        AND (p.layout_data IS NULL OR p.layout_data = '' OR p.layout_data = 'null')
-        ORDER BY p.id DESC
+        AND (cp.layout_data IS NULL OR cp.layout_data = '' OR cp.layout_data = 'null')
+        ORDER BY cp.id DESC
         LIMIT 20
       `);
       console.log('[Layout] Query result:', rows.length, 'papers');

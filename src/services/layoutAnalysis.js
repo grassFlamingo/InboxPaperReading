@@ -248,11 +248,13 @@ class LayoutAnalysisService {
     let imageDet = detections.find(d => d.label === 'image');
     let titleDet = detections.find(d => d.label === 'doc_title');
     if (!titleDet) titleDet = detections.find(d => d.label === 'paragraph_title');
+    let abstractDet = detections.find(d => d.label === 'abstract');
 
     const layoutData = JSON.stringify({
       detections,
       title_bbox: titleDet?.bbox || null,
       image_bbox: imageDet?.bbox || null,
+      abstract_bbox: abstractDet?.bbox || null,
       title_label: titleDet?.label || null,
       highlighted_bbox: imageDet?.bbox || titleDet?.bbox || null,
       highlighted_label: imageDet ? 'image' : (titleDet?.label || null),

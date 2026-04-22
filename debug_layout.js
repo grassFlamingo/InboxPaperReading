@@ -136,7 +136,7 @@ async function main() {
     FROM papers p
     JOIN cached_papers cp ON p.id = cp.paper_id
     WHERE cp.file_path IS NOT NULL AND cp.file_path != ''
-    AND (p.layout_data IS NULL OR p.layout_data = '' OR p.layout_data = 'null')
+    AND (cp.layout_data IS NULL OR cp.layout_data = '' OR cp.layout_data = 'null')
     ORDER BY p.id DESC
     LIMIT 10
   `);

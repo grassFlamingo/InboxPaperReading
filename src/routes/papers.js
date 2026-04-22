@@ -19,7 +19,7 @@ function setupPaperRoutes(app) {
   // GET /api/papers/:id - Get single paper (must be before /api/papers to avoid "papers" being captured as :id)
   app.get('/api/papers/:id', (req, res) => {
     const { id } = req.params;
-    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
+    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
     if (!row) return res.status(404).json({ error: 'not found' });
     row.cached_preview_path = getPreviewUrl(row.cached_preview_path, row.id);
     res.json(row);
@@ -28,7 +28,7 @@ function setupPaperRoutes(app) {
   // GET /api/papers - List papers with filters and pagination
   app.get('/api/papers', (req, res) => {
     const { category, status, q, sort = 'priority', offset = 0, limit = 50, cached } = req.query;
-    let query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.status != ?';
+    let query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.status != ?';
     let countQuery = 'SELECT COUNT(*) as total FROM papers p WHERE p.status != ?';
     const params = ['done'];
     const countParams = ['done'];
@@ -77,7 +77,7 @@ function setupPaperRoutes(app) {
   // GET /api/papers/:id - Get single paper
   app.get('/api/papers/:id', (req, res) => {
     const { id } = req.params;
-    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
+    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
     if (!row) return res.status(404).json({ error: 'not found' });
     row.cached_preview_path = getPreviewUrl(row.cached_preview_path, row.id);
     res.json(row);
@@ -95,7 +95,7 @@ function setupPaperRoutes(app) {
     sets.push('updated_at = CURRENT_TIMESTAMP');
     vals.push(id);
     db.runQuery(`UPDATE papers SET ${sets.join(', ')} WHERE id = ?`, vals);
-    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
+    const row = db.queryOne('SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.id = ?', [id]);
     row.cached_preview_path = getPreviewUrl(row.cached_preview_path, row.id);
     res.json(row);
   });
@@ -288,11 +288,11 @@ IMPORTANT: Do NOT use <think/> tags. Reply directly with JSON only.`;
 
   // GET /api/papers/:id/layout - Get layout analysis data
   app.get('/api/papers/:id/layout', (req, res) => {
-    const paper = db.queryOne('SELECT layout_data FROM papers WHERE id = ?', [req.params.id]);
-    if (!paper) return res.status(404).json({ error: 'not found' });
-    if (!paper.layout_data) return res.json({ analyzed: false });
+    const cached = db.queryOne('SELECT layout_data FROM cached_papers WHERE paper_id = ?', [req.params.id]);
+    if (!cached) return res.status(404).json({ error: 'not cached' });
+    if (!cached.layout_data) return res.json({ analyzed: false });
     try {
-      const layout = JSON.parse(paper.layout_data);
+      const layout = JSON.parse(cached.layout_data);
       res.json({ analyzed: true, ...layout });
     } catch (e) {
       res.json({ analyzed: false });
@@ -301,17 +301,15 @@ IMPORTANT: Do NOT use <think/> tags. Reply directly with JSON only.`;
 
   // POST /api/layout-redetect - Force re-detect all cached papers
   app.post('/api/layout-redetect', (req, res) => {
-    db.runQuery("UPDATE papers SET layout_data = NULL WHERE id IN (SELECT paper_id FROM cached_papers WHERE file_path IS NOT NULL AND file_path != '')");
-    const count = db.queryOne("SELECT COUNT(*) as c FROM papers WHERE layout_data IS NULL AND id IN (SELECT paper_id FROM cached_papers)").c;
+    db.runQuery("UPDATE cached_papers SET layout_data = NULL WHERE file_path IS NOT NULL AND file_path != ''");
+    const count = db.queryOne("SELECT COUNT(*) as c FROM cached_papers WHERE layout_data IS NULL AND file_path IS NOT NULL AND file_path != ''").c;
     res.json({ updated: count });
   });
 
   // GET /api/layout-stats - Get layout analysis stats
   app.get('/api/layout-stats', (req, res) => {
-    const cached = db.queryOne("SELECT COUNT(*) as c FROM cached_papers").c;
-    const needsAnalysis = db.queryOne(`SELECT COUNT(*) as c FROM papers p 
-      JOIN cached_papers cp ON p.id = cp.paper_id 
-      WHERE (p.layout_data IS NULL OR p.layout_data = '' OR p.layout_data = 'null')`).c;
+    const cached = db.queryOne("SELECT COUNT(*) as c FROM cached_papers WHERE file_path IS NOT NULL AND file_path != ''").c;
+    const needsAnalysis = db.queryOne("SELECT COUNT(*) as c FROM cached_papers WHERE file_path IS NOT NULL AND file_path != '' AND (layout_data IS NULL OR layout_data = '' OR layout_data = 'null')").c;
     const analyzed = cached - needsAnalysis;
     res.json({ cached, analyzed, needsAnalysis });
   });
