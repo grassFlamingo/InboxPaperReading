@@ -128,6 +128,18 @@ h1 {
   padding: 10px 16px;
   min-width: 80px;
   text-align: center;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color .15s, background .15s;
+}
+
+.stat-item:hover {
+  border-color: var(--accent);
+}
+
+.stat-item.active {
+  border-color: var(--accent);
+  background: rgba(234,179,8,.1);
 }
 
 .stat-num {

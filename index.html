@@ -34,13 +34,13 @@
       <select id="filterCat" onchange="PaperApp.resetAndReload()">
         <option value="">全部分类</option>
       </select>
-      <select id="filterStatus" onchange="PaperApp.resetAndReload()">
+      <select id="filterStatus" style="display:none">
         <option value="">全部状态</option>
         <option value="unread">未读</option>
         <option value="reading">阅读中</option>
         <option value="done">已读</option>
       </select>
-      <select id="filterCached" onchange="PaperApp.resetAndReload()">
+      <select id="filterCached" style="display:none">
         <option value="">全部</option>
         <option value="cached">已缓存</option>
         <option value="uncached">未缓存</option>

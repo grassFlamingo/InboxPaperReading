@@ -25,6 +25,12 @@ const PaperApp = {
   paperBatch: { papers: [], total: 0, offset: 0, limit: 50, hasMore: true, loading: false },
 
   async init() {
+    const savedStatus = localStorage.getItem('paperFilter_status') || '';
+    const savedCached = localStorage.getItem('paperFilter_cached') || '';
+    const fs = document.getElementById('filterStatus');
+    const fc = document.getElementById('filterCached');
+    if (fs) fs.value = savedStatus;
+    if (fc) fc.value = savedCached;
     await this.loadCategories();
     await this.loadPapers(true);
     this.render();
@@ -135,7 +141,27 @@ const PaperApp = {
 
   async loadStats() {
     const s = await PaperAPI.getStats();
-    document.getElementById('stats').innerHTML = RenderUtils.renderStats(s);
+    const currentStatus = document.getElementById('filterStatus')?.value || '';
+    const currentCached = document.getElementById('filterCached')?.value || '';
+    document.getElementById('stats').innerHTML = RenderUtils.renderStats(s, currentStatus, currentCached);
+  },
+
+  filterByStatus(status) {
+    document.getElementById('filterStatus').value = status;
+    localStorage.setItem('paperFilter_status', status);
+    this.paperBatch = { papers: [], total: 0, offset: 0, limit: 50, hasMore: true, loading: false };
+    this.render();
+  },
+
+  filterByCached(cached) {
+    document.getElementById('filterCached').value = cached;
+    localStorage.setItem('paperFilter_cached', cached);
+    if (cached) {
+      document.getElementById('filterStatus').value = '';
+      localStorage.setItem('paperFilter_status', '');
+    }
+    this.paperBatch = { papers: [], total: 0, offset: 0, limit: 50, hasMore: true, loading: false };
+    this.render();
   },
 
   async render() {
@@ -325,7 +351,14 @@ const PaperApp = {
         document.getElementById('importTags').value.trim(),
         document.getElementById('importNotes').value.trim()
       );
-      if (d.id) {
+      if (d.error) {
+        res.style.display = 'block';
+        res.style.background = 'rgba(248,113,113,.07)';
+        res.style.borderColor = 'rgba(248,113,113,.3)';
+        res.innerHTML = `<div style="color:var(--red)">${d._status === 409 ? '⚠️ ' : '❌ '}${d.error}${d.id ? ` (#${d.id})` : ''}</div>`;
+        btn.textContent = 'AI 导入';
+        btn.disabled = false;
+      } else if (d.id) {
         const typeNames = { paper: 'arXiv论文', web: '网页' };
         res.style.display = 'block';
         res.style.background = 'rgba(52,211,153,.07)';

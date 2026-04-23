@@ -187,14 +187,20 @@ function renderPaperList(papers, options = {}) {
   return papers.map((p, i) => renderCard(p, i + 1, { grid, showNum })).join('');
 }
 
-function renderStats(s) {
-  return `
-    <div class="stat-item"><div class="stat-num">${s.total}</div><div class="stat-label">总计</div></div>
-    <div class="stat-item unread"><div class="stat-num">${s.unread}</div><div class="stat-label">未读</div></div>
-    <div class="stat-item reading"><div class="stat-num">${s.reading}</div><div class="stat-label">阅读中</div></div>
-    <div class="stat-item done"><div class="stat-num">${s.done}</div><div class="stat-label">已读</div></div>
-    <div class="stat-item cached"><div class="stat-num">${s.cached||0}</div><div class="stat-label">已缓存</div></div>
-  `;
+function renderStats(s, currentStatus, currentCached) {
+  const items = [
+    { key: '', label: '全部', num: s.total, cls: '', type: 'status' },
+    { key: 'unread', label: '未读', num: s.unread, cls: 'unread', type: 'status' },
+    { key: 'reading', label: '阅读中', num: s.reading, cls: 'reading', type: 'status' },
+    { key: 'done', label: '已读', num: s.done, cls: 'done', type: 'status' },
+    { key: 'cached', label: '已缓存', num: s.cached||0, cls: 'cached', type: 'cached' },
+  ];
+  return items.map(item => {
+    const currentVal = item.type === 'status' ? currentStatus : currentCached;
+    const active = currentVal === item.key ? 'active' : '';
+    const handler = item.type === 'status' ? `PaperApp.filterByStatus('${item.key}')` : `PaperApp.filterByCached('${item.key}')`;
+    return `<div class="stat-item ${item.cls} ${active}" onclick="${handler}"><div class="stat-num">${item.num}</div><div class="stat-label">${item.label}</div></div>`;
+  }).join('');
 }
 
 function renderCategorySelect(cats) {

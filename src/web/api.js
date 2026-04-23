@@ -51,10 +51,13 @@ const api = {
   },
 
   async importUrl(url, priority, tags, notes) {
-    return fetch(`${API}/api/import-url`, {
+    const r = await fetch(`${API}/api/import-url`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, priority, tags, notes })
-    }).then(r => r.json());
+    });
+    const d = await r.json();
+    d._status = r.status;
+    return d;
   },
 
   async syncEmails() {

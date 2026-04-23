@@ -29,19 +29,35 @@ function setupPaperRoutes(app) {
   // GET /api/papers - List papers with filters and pagination
   app.get('/api/papers', (req, res) => {
     const { category, status, q, sort = 'priority', offset = 0, limit = 50, cached } = req.query;
-    let query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.status != ?';
-    let countQuery = 'SELECT COUNT(*) as total FROM papers p WHERE p.status != ?';
-    const params = ['done'];
-    const countParams = ['done'];
+    let query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id';
+    let countQuery = 'SELECT COUNT(*) as total FROM papers p';
+    const params = [];
+    const countParams = [];
+
+    if (status) {
+      query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.status = ?';
+      countQuery = 'SELECT COUNT(*) as total FROM papers p WHERE p.status = ?';
+      params.push(status); countParams.push(status);
+    } else if (cached === 'cached') {
+      query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE cp.paper_id IS NOT NULL';
+      countQuery = 'SELECT COUNT(*) as total FROM papers p WHERE p.id IN (SELECT paper_id FROM cached_papers)';
+    } else if (cached === 'uncached') {
+      query = 'SELECT p.*, cp.file_path as cached_file_path, cp.preview_image as cached_preview_path, cp.layout_data FROM papers p LEFT JOIN cached_papers cp ON p.id = cp.paper_id WHERE p.status != ? AND cp.paper_id IS NULL';
+      countQuery = 'SELECT COUNT(*) as total FROM papers p WHERE p.status != ? AND p.id NOT IN (SELECT paper_id FROM cached_papers)';
+      params.push('done'); countParams.push('done');
+    } else {
+      query += ' WHERE p.status != ?';
+      countQuery += ' WHERE p.status != ?';
+      params.push('done'); countParams.push('done');
+    }
 
     if (category) { query += ' AND p.category = ?'; countQuery += ' AND p.category = ?'; params.push(category); countParams.push(category); }
-    if (status) { query += ' AND p.status = ?'; countQuery += ' AND p.status = ?'; params.push(status); countParams.push(status); }
-    if (q) { 
+    if (q) {
       const qpattern = `%${q}%`;
-      query += ' AND (p.title LIKE ? OR p.authors LIKE ? OR p.abstract LIKE ? OR p.tags LIKE ? OR p.arxiv_id LIKE ?)'; 
-      countQuery += ' AND (p.title LIKE ? OR p.authors LIKE ? OR p.abstract LIKE ? OR p.tags LIKE ? OR p.arxiv_id LIKE ?)'; 
-      params.push(qpattern, qpattern, qpattern, qpattern, qpattern); 
-      countParams.push(qpattern, qpattern, qpattern, qpattern, qpattern); 
+      query += ' AND (p.title LIKE ? OR p.authors LIKE ? OR p.abstract LIKE ? OR p.tags LIKE ? OR p.arxiv_id LIKE ?)';
+      countQuery += ' AND (p.title LIKE ? OR p.authors LIKE ? OR p.abstract LIKE ? OR p.tags LIKE ? OR p.arxiv_id LIKE ?)';
+      params.push(qpattern, qpattern, qpattern, qpattern, qpattern);
+      countParams.push(qpattern, qpattern, qpattern, qpattern, qpattern);
     }
     if (cached === 'cached') { query += ' AND cp.paper_id IS NOT NULL'; countQuery += ' AND p.id IN (SELECT paper_id FROM cached_papers)'; }
     else if (cached === 'uncached') { query += ' AND cp.paper_id IS NULL'; countQuery += ' AND p.id NOT IN (SELECT paper_id FROM cached_papers)'; }
