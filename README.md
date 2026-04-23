@@ -25,6 +25,7 @@ A self-hosted web app for organizing and reading academic papers. Instead of dro
 - **Hover preview** of the first page
 - **Local storage persistence** for filter states
 - **Background worker** for automatic caching and processing
+- **Layoyt detection** using ONNX to extract the location of title, images, abstracts, ... in the first page, and use the detection result to better preview the first page. The layout detection is empowered by `PP-DocLayout-M` (an util from PaddleOCR).
 
 ## Tech Stack
 
