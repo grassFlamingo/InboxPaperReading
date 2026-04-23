@@ -17,10 +17,11 @@
         <p class="subtitle" id="subtitle"></p>
       </div>
       <div class="stats" id="stats"></div>
+      <div id="bgStatus" class="bg-status"></div>
       <div style="margin-left: auto;"></div>
       <div class="header-actions">
         <button class="btn" onclick="PaperApp.redetectLayout()" style="border-color:var(--accent);color:var(--accent)">重检布局</button>
-        <button class="btn" onclick="TechTermsApp.show()" style="border-color:#a78bfa;color:#a78bfa">术语表</button>
+        <button class="btn" id="techTermsBtn" onclick="TechTermsApp.toggle()" style="border-color:#a78bfa;color:#a78bfa">术语表</button>
         <button class="btn" id="syncBtn" onclick="PaperApp.syncEmails()"
           style="border-color:var(--green);color:var(--green)">邮箱同步</button>
         <button class="btn" id="importUrlBtn" onclick="PaperApp.openImportUrlModal()"
@@ -53,14 +54,14 @@
         <option value="video">视频</option>
       </select>
       <select id="sortBy" onchange="PaperApp.resetAndReload()">
-        <option value="priority">按优先级↓</option>
-        <option value="priority_asc">按优先级↑</option>
-        <option value="stars">按 AI 推荐↓</option>
-        <option value="stars_asc">按 AI 推荐↑</option>
-        <option value="date">按时间↓</option>
-        <option value="date_asc">按时间↑</option>
-        <option value="title">按标题↓</option>
-        <option value="title_asc">按标题↑</option>
+        <option value="priority">按优先级 ↓</option>
+        <option value="priority_asc">按优先级 ↑</option>
+        <option value="stars">按 AI 推荐 ↓</option>
+        <option value="stars_asc">按 AI 推荐 ↑</option>
+        <option value="date">按时间 ↓</option>
+        <option value="date_asc">按时间 ↑</option>
+        <option value="title">按标题 ↓</option>
+        <option value="title_asc">按标题 ↑</option>
       </select>
       <input type="text" id="searchBox" placeholder="搜索标题/作者/标签..." oninput="PaperApp.resetAndReload()">
       <select id="layoutMode" onchange="PaperApp.resetAndReload()" style="width:auto">
@@ -80,8 +81,8 @@
           <p class="subtitle" id="techTermsSubtitle">加载中...</p>
         </div>
         <div style="display:flex;gap:8px">
-          <button class="btn" onclick="TechTermsApp.exportJson()">⬇ 导出</button>
-          <button class="btn" onclick="document.getElementById('techTermsImportFile').click()">⬆ 导入</button>
+          <button class="btn" onclick="TechTermsApp.exportJson()">导出 ↓</button>
+          <button class="btn" onclick="document.getElementById('techTermsImportFile').click()">↑ 导入</button>
           <input type="file" id="techTermsImportFile" accept=".json" style="display:none" onchange="TechTermsApp.importJson(this)">
           <button class="btn" onclick="TechTermsApp.hide()">返回论文</button>
         </div>
@@ -131,8 +132,8 @@
     <!-- URL 导入模态框 -->
     <div class="modal-overlay" id="importUrlModal">
       <div class="modal">
-        <h2>🔗 从 URL 导入</h2>
-        <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">支持微信文章、推文(Twitter/X)、技术博客、arXiv 论文等。AI
+        <h2>从 URL 导入</h2>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:12px">支持微信文章、技术博客、arXiv 论文等。AI
           将自动提取标题、摘要、分类。</p>
         <label>URL *</label>
         <input type="text" id="importUrl" placeholder="https://mp.weixin.qq.com/s/... 或 https://x.com/...">
@@ -147,7 +148,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn" onclick="PaperApp.closeImportUrlModal()">取消</button>
-          <button class="btn btn-primary" id="importUrlSubmit" onclick="PaperApp.doImportUrl()">🤖 AI 导入</button>
+          <button class="btn btn-primary" id="importUrlSubmit" onclick="PaperApp.doImportUrl()">AI 导入</button>
         </div>
       </div>
     </div>
@@ -174,12 +175,11 @@
         </select>
         <label>内容类型</label>
         <select id="fSourceType">
-          <option value="paper">📄 论文</option>
-          <option value="wechat_article">💬 微信文章</option>
-          <option value="twitter_thread">🐦 推文</option>
-          <option value="blog_post">📝 博客</option>
-          <option value="video">🎬 视频</option>
-          <option value="other">🔗 其他</option>
+          <option value="paper">论文</option>
+          <option value="wechat_article">微信文章</option>
+          <option value="blog_post">博客</option>
+          <option value="video">视频</option>
+          <option value="other">其他</option>
         </select>
         <label>链接</label>
         <input type="text" id="fUrl" placeholder="https://arxiv.org/abs/...">

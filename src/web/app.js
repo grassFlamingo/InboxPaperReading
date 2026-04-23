@@ -170,7 +170,6 @@ const PaperApp = {
   async loadStats() {
     const s = await PaperAPI.getStats();
     document.getElementById('stats').innerHTML = RenderUtils.renderStats(s);
-    // document.getElementById('subtitle').textContent = `SQLite 驱动 · 实时渲染 · ${s.total} 篇`;
   },
 
   async render() {
@@ -400,26 +399,51 @@ const PaperApp = {
     try {
       const d = await PaperAPI.syncEmails();
       if (d.status === 'completed') {
-        btn.textContent = `✅ 已同步 (+${d.added || 0})`;
-        setTimeout(() => { this.render(); this.loadCategories(); btn.textContent = '📬 同步邮箱'; btn.disabled = false; }, 3000);
+        btn.textContent = `已同步 (+${d.added || 0})`;
+        setTimeout(() => { this.render(); this.loadCategories(); btn.textContent = '同步邮箱'; btn.disabled = false; }, 3000);
       } else if (d.status === 'already_running') {
         btn.textContent = '⏳ 同步中...';
-        setTimeout(() => { btn.textContent = '📬 同步邮箱'; btn.disabled = false; }, 2000);
+        setTimeout(() => { btn.textContent = '同步邮箱'; btn.disabled = false; }, 2000);
       } else if (d.status === 'failed') {
-        btn.textContent = '❌ 失败';
-        setTimeout(() => { btn.textContent = '📬 同步邮箱'; btn.disabled = false; }, 2000);
+        btn.textContent = '失败';
+        setTimeout(() => { btn.textContent = '同步邮箱'; btn.disabled = false; }, 2000);
       } else {
-        btn.textContent = '✅ 已触发';
-        setTimeout(() => { this.render(); this.loadCategories(); btn.textContent = '📬 同步邮箱'; btn.disabled = false; }, 3000);
+        btn.textContent = '已触发';
+        setTimeout(() => { this.render(); this.loadCategories(); btn.textContent = '同步邮箱'; btn.disabled = false; }, 3000);
       }
     } catch(e) {
-      btn.textContent = '❌ 失败';
-      setTimeout(() => { btn.textContent = '📬 同步邮箱'; btn.disabled = false; }, 2000);
+      btn.textContent = '失败';
+      setTimeout(() => { btn.textContent = '同步邮箱'; btn.disabled = false; }, 2000);
     }
   },
 
-startBgPoll() {
-    // Removed summary status polling - status bar removed
+  startBgPoll() {
+    this.loadBgStatus();
+    setInterval(() => this.loadBgStatus(), 10000);
+  },
+
+  async loadBgStatus() {
+    try {
+      const status = await PaperAPI.getBgTasksStatus();
+      const bgStatusEl = document.getElementById('bgStatus');
+      if (!bgStatusEl) {
+        console.debug('[BgStatus] Element not found');
+        return;
+      }
+      console.debug('[BgStatus] Received:', status);
+
+      const html = RenderUtils.renderBgStatus(status);
+      console.debug('[BgStatus] Rendered HTML:', html);
+
+      if (html) {
+        bgStatusEl.innerHTML = html;
+        bgStatusEl.style.display = 'block';
+      } else {
+        bgStatusEl.style.display = 'none';
+      }
+    } catch (e) {
+      console.debug('[BgStatus] Failed to load:', e.message);
+    }
   },
 
   async toggleNotes(id) {
@@ -568,7 +592,7 @@ startBgPoll() {
       const result = await PaperAPI.redetectLayout();
       alert(`已重置 ${result.updated} 篇论文的布局数据，将由后台重新检测`);
       await PaperAPI.runBgTask('layout');
-      btn.textContent = '✅ 已重置';
+      btn.textContent = '已重置';
       setTimeout(() => { btn.disabled = false; btn.textContent = '重检布局'; }, 2000);
     } catch (e) {
       alert('重置失败: ' + e.message);
@@ -594,11 +618,22 @@ window.esc = esc;
 const TechTermsApp = {
   terms: [],
   stats: {},
+  isVisible: false,
+
+  async toggle() {
+    if (this.isVisible) {
+      await this.hide();
+    } else {
+      await this.show();
+    }
+  },
 
   async show() {
     document.getElementById('techTermsPanel').style.display = 'block';
     document.getElementById('paperList').style.display = 'none';
     document.getElementById('appContainer').querySelector('.header').style.display = 'none';
+    document.getElementById('techTermsBtn').textContent = '论文列表';
+    this.isVisible = true;
     await this.loadStats();
     await this.render();
   },
@@ -607,6 +642,8 @@ const TechTermsApp = {
     document.getElementById('techTermsPanel').style.display = 'none';
     document.getElementById('paperList').style.display = 'block';
     document.getElementById('appContainer').querySelector('.header').style.display = 'flex';
+    document.getElementById('techTermsBtn').textContent = '术语表';
+    this.isVisible = false;
   },
 
   async loadStats() {

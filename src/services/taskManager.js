@@ -389,6 +389,7 @@ class TaskManager {
         last_status: schedule.last_status,
         last_error: schedule.last_error,
         processed_count: schedule.processed_count,
+        running: this.isRunning.get(taskName) || false,
       };
     }
     return status;

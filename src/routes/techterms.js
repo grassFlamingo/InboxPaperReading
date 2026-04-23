@@ -46,7 +46,7 @@ async function extractTechTermsFromText(text, sourcePaperId) {
 只输出JSONL，不要其他内容。`;
 
   try {
-    const llmResult = cleanThinkTags(await callLlm(systemPrompt, text, 2048, '', { thinking: false }));
+    const llmResult = cleanThinkTags(await callLlm(systemPrompt, text, 1024, '', { thinking: false }));
     const lines = llmResult.split('\n').filter(l => l.trim());
 
     const validTerms = [];

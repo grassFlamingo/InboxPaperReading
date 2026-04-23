@@ -18,13 +18,9 @@ function paperUrl(p) {
   return p.source_url || '#';
 }
 
-const SOURCE_TYPE_ICONS = {
-  paper: '📄', wechat_article: '💬', twitter_thread: '🐦',
-  blog_post: '📝', video: '🎬', other: '🔗'
-};
 
 const SOURCE_TYPE_NAMES = {
-  paper: '论文', wechat_article: '微信文章', twitter_thread: '推文',
+  paper: '论文', wechat_article: '微信文章',
   blog_post: '博客', video: '视频', other: '链接'
 };
 
@@ -47,9 +43,8 @@ function renderAiCatTag(aiCategory) {
 }
 
 function renderSourceBadge(srcType) {
-  const icon = SOURCE_TYPE_ICONS[srcType] || '🔗';
   const name = SOURCE_TYPE_NAMES[srcType] || srcType;
-  return `<span class="source-badge ${srcType}">${icon} ${name}</span>`;
+  return `<span class="source-badge ${srcType}">${name}</span>`;
 }
 
 function renderUserRating(p) {
@@ -210,11 +205,67 @@ function renderCategorySelect(cats) {
   return html;
 }
 
+function renderBgStatus(tasks) {
+  if (!tasks || Object.keys(tasks).length === 0) return '';
+
+  const TASK_LABELS = {
+    emailSync: '邮箱同步',
+    cache: '缓存PDF',
+    layout: '布局分析',
+    metadata: '元数据',
+    markdown: 'Markdown',
+    summary: 'AI摘要',
+    terminology: '术语'
+  };
+
+  const runningTasks = [];
+  const idleTasks = [];
+
+  for (const [name, task] of Object.entries(tasks)) {
+    const label = TASK_LABELS[name] || name;
+    const status = task.running ? 'running' : (task.last_error ? 'error' : 'idle');
+    const lastRun = task.last_run ? formatTimeAgo(task.last_run) : '从未';
+    const processed = task.processed_count || 0;
+
+    const info = `${lastRun}, ${processed} processed`;
+    const taskHtml = `<span class="bg-task"><span class="bg-task-label">${label}</span>: <span class="bg-task-status ${status}">[${status}]</span> <span class="bg-task-info">(${info})</span></span>`;
+
+    if (status === 'running') {
+      runningTasks.push(taskHtml);
+    } else {
+      idleTasks.push(taskHtml);
+    }
+  }
+
+  if (runningTasks.length === 0) return '';
+
+  let html = `<span class="bg-status-label">[bg]</span> `;
+  html += runningTasks.join(' | ');
+  if (idleTasks.length > 0) {
+    html += ' | ' + idleTasks.slice(0, 3).join(' | ');
+  }
+  return html;
+}
+
+function formatTimeAgo(timestamp) {
+  if (!timestamp) return '从未';
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return '未知';
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
 window.RenderUtils = {
   esc, paperUrl, renderStars, renderTags, renderAiCatTag,
   renderSourceBadge, renderUserRating, renderAiSummary, renderAiStars,
   renderCard, renderCategoryHeader, renderStats, renderCategorySelect, renderPaperList,
-  renderMarkdown,
-  SOURCE_TYPE_ICONS, SOURCE_TYPE_NAMES, STATUS_ORDER, STATUS_NEXT, STATUS_LABELS,
+  renderMarkdown, renderBgStatus, formatTimeAgo,
+  SOURCE_TYPE_NAMES, STATUS_ORDER, STATUS_NEXT, STATUS_LABELS,
   WEB_CONTENT_TYPES
 };

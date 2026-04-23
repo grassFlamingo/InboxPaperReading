@@ -6,8 +6,11 @@ const openai = new OpenAI({
   apiKey: config.LLM.API_KEY,
 });
 
-async function callLlm(systemPrompt, userContent, maxTokens = 150, glossary = '', options = {thinking: false}) {
+async function callLlm(systemPrompt, userContent, maxTokens = undefined, glossary = '', options = {thinking: false}) {
   let model = config.LLM.MODEL;
+  if (!maxTokens){
+    maxTokens = config.LLM.DEFAULT_MAX_TOKENS || 1024;
+  }
 
   if (!model) {
     try {

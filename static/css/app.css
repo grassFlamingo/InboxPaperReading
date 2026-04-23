@@ -157,6 +157,60 @@ h1 {
   color: var(--accent);
 }
 
+.bg-status {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 8px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  align-items: center;
+  max-width: 90vw;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+}
+
+.bg-status .bg-task {
+  display: inline;
+  margin-right: 12px;
+}
+
+.bg-status-label {
+  font-weight: 600;
+  color: var(--accent2);
+  margin-right: 8px;
+  display: inline;
+}
+
+.bg-task-label {
+  color: var(--text);
+}
+
+.bg-task-info {
+  color: var(--muted);
+}
+
+.bg-task-status.running {
+  color: var(--yellow);
+  animation: pulse 1.5s infinite;
+}
+
+.bg-task-status.idle {
+  color: var(--green);
+}
+
+.bg-task-status.error {
+  color: var(--red);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 .toolbar {
   display: flex;
   gap: 8px;
